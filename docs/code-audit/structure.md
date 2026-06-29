@@ -1,7 +1,7 @@
 # sir-frontend Structure Map — pass 1
 
-작성일: 2026-06-25  
-상태: 1차 구조 탐색 완료. production/source 코드는 변경하지 않음.
+작성일: 2026-06-25
+상태: 1차 구조 탐색 기반 + P0.2 PDF 개선 + 2026-06-29 policy confirmation 반영본.
 
 ## 1. Runtime / framework baseline
 
@@ -63,8 +63,8 @@ Confidence: High.
 - Evidence: `src/app/(client)/layout.tsx:6-9` — client shell은 현재 `getCurrentUser()` 후 별도 role 차단 없이 렌더.
 - Evidence: `src/lib/auth/resolveLandingPath.ts:12-29` — `get_user_landing` RPC로 role/workspace/report 기반 landing path 결정.
 
-Inference: admin route 보호는 middleware + layout 이중 guard가 있고, client route는 authenticated user이면 접근 가능하도록 설계된 것으로 보인다. 이것이 의도인지, admin preview 허용인지, user-only surface인지 추가 정책 확인이 필요하다.
-Confidence: Medium.
+Inference: admin route 보호는 middleware + layout 이중 guard가 있고, client route는 authenticated user이면 접근 가능하다. 2026-06-29 사용자 결정에 따라 admin/super_admin은 고객 화면 preview/support 목적으로 모든 client report/monitoring/crisis 화면 접근이 가능해야 하므로 현재 동작은 정책에 부합한다.
+Confidence: High.
 
 ## 5. State / cache flow
 
@@ -144,30 +144,38 @@ High-value regression candidates:
 Inference: frontend currently has useful operational scripts but lacks a conventional hermetic test runner surface. A future test plan should distinguish CI-safe tests from live Supabase smoke/e2e scripts.
 Confidence: High.
 
-## 10. Lint/typecheck/dependency verification — pass 3
+## 10. Lint/typecheck/dependency verification — pass 3 + Phase 1A update
 
-Commands run in `sir-frontend` on 2026-06-25:
+Initial commands run in `sir-frontend` on 2026-06-25 recorded the baseline: typecheck passed, app-source lint had 13 warnings, repo-level lint failed on Node script globals, and production audit had 6 vulnerabilities.
 
+Phase 1A remediation verification run in `sir-frontend` on 2026-06-29:
+
+- `git -C sir-frontend status --short --branch` — changed files were frontend-only: `eslint.config.js`, `package.json`, `package-lock.json`, `src/components/pipeline/ReportResult.tsx`, deleted `src/utils/reportPdf.ts`.
+- `npm run lint` — passed with 0 errors and 13 existing warnings.
 - `npx tsc --noEmit` — passed.
-- `npm run lint` — failed with 202 problems: 189 errors and 13 warnings.
-- `npx eslint src` — passed with 13 warnings and 0 errors.
-- `npm audit --omit=dev` — failed with 6 production vulnerabilities: 2 moderate, 3 high, 1 critical.
-- `npm audit` — failed with 11 total vulnerabilities: 1 low, 4 moderate, 5 high, 1 critical.
+- `npm run build` — passed on Next.js `15.5.19`.
+- `npm audit --omit=dev --audit-level=moderate` — passed with `found 0 vulnerabilities`.
+- Local browser smoke after remediation — actual product PDF download still works.
 
 Lint surface:
 
-- Evidence: `eslint.config.js:9-21` ignores only `dist`, `.next`, `next-env.d.ts`, and configures browser globals only for `**/*.{ts,tsx}`.
-- Evidence: `package.json:10` runs `eslint .`, so root `scripts/*.mjs` are linted by `js.configs.recommended` without Node globals.
-- Evidence: `npm run lint` errors are concentrated in `scripts/*.mjs` as `process`, `console`, `URL`, `setTimeout` `no-undef`.
-- Evidence: `npx eslint src` has 13 warnings only: `MobileSirStockChart.tsx` explicit `any` at lines `72`, `111`, `308`; `MobileFab.tsx:46` hook deps warning; `AnalysisResult.tsx:10` unused `AnalysisArticle`; TanStack Virtual incompatible-library warnings in `ChannelItemContent.tsx:49`, `NewsClusterContent.tsx:189`, `RiskTable.tsx:121`; unused `_reportId/_periodStart/_periodEnd` in `reportApi.ts:457-459`; unused `ReactQueryDevtools` import in `QueryProvider.tsx:5`; unused `sentimentEnum` import in `types/report.ts:2`.
+- Evidence: `package.json:10` runs repo-level `eslint .`.
+- Evidence: `eslint.config.js:13-19` adds a narrow `scripts/**/*.mjs` override with Node globals and module semantics.
+- Evidence: remaining lint warnings are app-source quality backlog only: `MobileSirStockChart.tsx` explicit `any`; `MobileFab.tsx` hook deps warning; `AnalysisResult.tsx` unused `AnalysisArticle`; TanStack Virtual incompatible-library warnings in `ChannelItemContent.tsx`, `NewsClusterContent.tsx`, and `RiskTable.tsx`; unused symbols in `reportApi.ts`, `QueryProvider.tsx`, and `types/report.ts`.
 
-Dependency audit surface:
+Production dependency audit surface:
 
-- Evidence: `package.json:28-31` direct production deps include `jspdf` and `next`.
-- Evidence: `npm ls next jspdf dompurify lodash ws postcss --depth=4` resolved `next@15.5.12`, `jspdf@4.2.0`, `dompurify@3.3.3` via `jspdf`, `lodash@4.17.23` via `@nivo/*`, `ws@8.19.0` via `@supabase/realtime-js`, `postcss@8.4.31` via `next`, and top-level `postcss@8.5.8` via `@tailwindcss/postcss`.
-- Evidence: `npm audit --omit=dev` reported critical `jspdf`, high `next`, high `lodash`, high `ws`, moderate `dompurify`, moderate `postcss` advisories; `npm audit fix` was not run.
+- Evidence: legacy `src/utils/reportPdf.ts` was deleted.
+- Evidence: `src/components/pipeline/ReportResult.tsx` no longer imports/calls `generateReportPdf`; it retains only DOCX export for the unreachable pipeline preview component.
+- Evidence: final grep found no `jspdf`, `jspdf-autotable`, `jsPDF`, `autoTable`, `generateReportPdf`, or `reportPdf` references in source or manifests.
+- Evidence: `npm ls jspdf jspdf-autotable dompurify lodash ws postcss next --omit=dev` resolves no `jspdf`/`jspdf-autotable`/`dompurify`, `next@15.5.19`, `lodash@4.18.1`, `ws@8.21.0`, and Next nested `postcss@8.5.10` via package override.
+- Evidence: active product PDF flow remains backend/Playwright render through `PdfDownloadButton` and `/report-pdf/[workspaceId]/[reportId]`; local smoke confirmed PDF download still works.
 
-Inference: application `src` lint is warning-only, but the repo-level `lint` script is not currently CI-clean because Node scripts lack matching ESLint globals/overrides. Dependency vulnerabilities require upgrade triage, especially `jspdf`/`next`; this pass records them only and does not change packages.
+Remaining audit surface:
+
+- Evidence: full `npm audit --audit-level=moderate` still reports dev/transitive issues in `@babel/core`, `brace-expansion`, `flatted`, `js-yaml`, `picomatch`, and dev top-level `postcss`.
+
+Inference: Phase 1A closed the frontend production dependency audit without touching backend/Supabase/PDF auth redesign. The correct jsPDF action was deletion, not upgrade, because the only jsPDF code path was an unreachable legacy pipeline branch. Remaining work is dev-toolchain audit cleanup and broader frontend quality/test backlog.
 Confidence: High.
 
 ## 11. Client UI data isolation / RLS assumptions — pass 3
@@ -197,10 +205,10 @@ PDF handoff chain:
 
 - Evidence: `src/components/client/sidebar/PdfDownloadButton.tsx:53-65` reads the current Supabase session and sends `Authorization: Bearer <access_token>` plus `X-Supabase-Refresh-Token` to backend `/api/report/{workspaceId}/{reportId}/pdf`.
 - Evidence: `src/middleware.ts:13-15` excludes `/report-pdf` from the normal middleware matcher.
-- Evidence: `src/lib/supabase/middleware.ts:7-13` also has a code-level early return for `/report-pdf`, because Playwright uses URL token parameters instead of cookies.
-- Evidence: `src/app/report-pdf/[workspaceId]/[reportId]/page.tsx:19-31` reads `?at=` and `?rt=` from `window.location.search` and calls `supabase.auth.setSession(...)`.
-- Evidence: `src/app/report-pdf/[workspaceId]/[reportId]/page.tsx:51-68` renders report sections with both route params and marks `html[data-pdf-ready="true"]` after Suspense data resolves.
-- Backend counterpart: `sir-backend/services/pdf_service.py:26-31` constructs the token-bearing `/report-pdf/{workspaceId}/{reportId}?at=...&rt=...` URL; `sir-backend/main.py:601-613` accepts the user bearer plus refresh header.
+- Evidence: `src/lib/supabase/middleware.ts:7-13` also has a code-level early return for `/report-pdf`, because Playwright uses an injected session instead of cookies.
+- Evidence: `src/app/report-pdf/[workspaceId]/[reportId]/page.tsx:15-62` consumes `window.__SIR_PDF_SESSION__`, deletes it, and waits for `supabase.auth.setSession(...)` before rendering.
+- Evidence: `src/app/report-pdf/[workspaceId]/[reportId]/page.tsx:77-94` renders report sections with both route params and marks `html[data-pdf-ready="true"]` after Suspense data resolves.
+- Backend counterpart: `sir-backend/services/pdf_service.py` injects the session via Playwright `context.add_init_script` and navigates to token-free `/report-pdf/{workspaceId}/{reportId}`; `sir-backend/main.py` accepts the user bearer plus refresh header and preflights access.
 
 Role surface:
 
@@ -213,7 +221,7 @@ Cross-repo smoke/e2e candidates:
 
 1. PDF happy path: client user in workspace downloads a published report; backend returns PDF and frontend `/report-pdf` sets session then marks `data-pdf-ready`.
 2. PDF mismatch path: valid user token with mismatched `{workspaceId, reportId}` or non-member workspace should fail before or during render without leaking another workspace's data.
-3. Token hygiene path: failed PDF render must not log token-bearing URL or include `?at`/`?rt` in surfaced error strings.
+3. Token hygiene path: failed PDF render must not log injected token values, authorization headers, or raw session payloads in surfaced error strings.
 4. Role route path: user cannot render `(app)` admin shell; admin/super_admin access to `(client)` pages should be explicitly accepted or redirected according to product policy.
 
 Inference: the frontend half of PDF generation intentionally bypasses middleware and relies on temporary browser session setup from backend-supplied tokens. That makes backend preflight and log redaction part of the same security boundary; frontend-only tests are insufficient.

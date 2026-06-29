@@ -92,7 +92,7 @@ function ReportPageContent() {
   const reportId = params?.reportId as string;
 
   const { data: workspace } = useWorkspaceSuspense(workspaceId);
-  const { data: report } = useReportInfoSuspense(reportId);
+  const { data: report } = useReportInfoSuspense(workspaceId, reportId);
   const { data: progressList } = useReportProgressSuspense(workspaceId);
   const publishMutation = usePublishReport(reportId, workspaceId);
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
@@ -127,6 +127,25 @@ function ReportPageContent() {
     next.set('section', id);
     router.replace(`${pathname}?${next.toString()}`, { scroll: false });
   };
+
+  if (!report) {
+    return (
+      <div className="min-h-full bg-slate-100 px-6 py-10 lg:px-10">
+        <div className="mx-auto max-w-xl rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+          <p className="text-base font-semibold text-slate-900">보고서를 찾을 수 없습니다.</p>
+          <p className="mt-2 text-sm text-slate-500">
+            요청한 워크스페이스와 보고서 조합이 올바르지 않습니다.
+          </p>
+          <Link
+            href={`/workspace/${workspaceId}`}
+            className="mt-5 inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-700"
+          >
+            워크스페이스로 돌아가기
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-full bg-slate-100 px-6 pt-8 lg:px-10 lg:pt-10 pb-0">

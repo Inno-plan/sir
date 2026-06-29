@@ -23,7 +23,7 @@ interface RiskContentProps {
 }
 
 export function RiskContent({ workspaceId, reportId, editable = false, allowReport = false, pdfMode = false }: RiskContentProps) {
-  const { data: report } = useReportInfoSuspense(reportId);
+  const { data: report } = useReportInfoSuspense(workspaceId, reportId);
   const { data: riskItems } = useRiskItemsSuspense(workspaceId, reportId);
   const { data: riskReports } = useRiskReportsSuspense(workspaceId, reportId);
   const { data: channelItems } = useChannelItemsSuspense(workspaceId, reportId);

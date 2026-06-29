@@ -191,11 +191,12 @@ async function getReportMeta(reportId: string): Promise<ReportMeta> {
 
 // ── 리포트 기본 정보 ──
 
-export async function getReportInfo(reportId: string) {
+export async function getReportInfo(workspaceId: string, reportId: string) {
   const { data } = await supabase
     .from('reports')
-    .select('type, period_start, period_end, created_at, sir_score, status')
+    .select('id, workspace_id, type, period_start, period_end, created_at, sir_score, status')
     .eq('id', reportId)
+    .eq('workspace_id', workspaceId)
     .maybeSingle();
   return data;
 }

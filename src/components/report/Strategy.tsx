@@ -18,7 +18,7 @@ interface StrategyProps {
 export function Strategy({ workspaceId, reportId, editable = false, pdfMode = false }: StrategyProps) {
   const { data: strategies } = useStrategiesSuspense(workspaceId, reportId);
   const { data: workspace } = useWorkspaceSirSuspense(workspaceId);
-  const { data: report } = useReportInfoSuspense(reportId);
+  const { data: report } = useReportInfoSuspense(workspaceId, reportId);
   const sectionTitle = `${workspace?.company_name ?? ''} 평판 제고 전략 제안`.trim();
   const periodPhrase = strategyPeriodPhrase(report?.type);
   const channelDesc = `${periodPhrase} 평판 분석 결과를 바탕으로, 각 채널별 긍정 여론 확산 및 부정 여론 완화를 위한 실행 전략을 제안합니다.`;

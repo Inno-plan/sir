@@ -1,49 +1,56 @@
-# sir-frontend Code Audit Checklist
+# sir-frontend 코드 감사 체크리스트
 
-> 목적: SIR frontend 구조, 데이터 흐름, 보안/취약점, 유지보수 개선점을 근거 파일과 함께 누적한다.
+> 목적: SIR frontend 구조, 데이터 흐름, 보안/취약점, 성능/최적화, 유지보수 개선점을 근거 파일과 함께 누적한다.
 > 규칙: 체크 완료 항목은 근거 파일/라인 또는 요약 파일을 함께 남긴다.
 
-## 0. Repository baseline
-- [x] package/scripts/dependency map — see `structure.md` §1
-- [x] framework/build/runtime config map — see `structure.md` §1
-- [x] source tree top-level map — see `structure.md` §2
-- [x] route/app structure map — see `structure.md` §2, §4
+## 0. 저장소 기준선
 
-## 1. Architecture and data flow
-- [x] app router / page layout boundaries — see `structure.md` §4
-- [x] API client layer (`src/lib/api`) inventory — see `route-api-matrix.md` §2
-- [x] React Query hooks inventory — see `route-api-matrix.md` §3
-- [x] auth/session/profile/workspace flow — see `structure.md` §4
-- [x] state stores and client caches — see `structure.md` §5
-- [x] type model boundaries and generated types — see `structure.md` §7 and `findings.md` F6
+- [x] 패키지/스크립트/의존성 맵 — `structure.md` §1 참고
+- [x] 프레임워크/빌드/런타임 설정 맵 — `structure.md` §1 참고
+- [x] 소스 트리 최상위 구조 맵 — `structure.md` §2 참고
+- [x] 라우트/App Router 구조 맵 — `structure.md` §2, §4 참고
 
-## 2. Security and vulnerability review
-- [x] env var exposure and client/server boundary — see `findings.md` F2/F4
-- [x] auth guard / route protection review — see `route-api-matrix.md` §1
-- [x] Supabase client usage and RLS assumptions — service-role/API matrix + client report/monitoring/crisis trace done; DB policy review pending, see `route-api-matrix.md` §1 and `structure.md` §11
-- [ ] unsafe DOM/rendering/file/url handling
-- [x] data leakage across workspaces/users — client report/PDF route-param and backend handoff trace done; see `structure.md` §11-12 and `findings.md` F10/F11
-- [x] dependency/config risk notes — see `structure.md` §10 and `findings.md` F9
+## 1. 아키텍처와 데이터 흐름
 
-## 3. Reliability and performance
-- [ ] loading/error/empty state consistency
-- [x] query invalidation/cache freshness patterns — see `structure.md` §8
-- [ ] large list/table/virtualization patterns
-- [x] build/lint warning inventory — see `structure.md` §10 and `findings.md` F8
-- [ ] dead/commented code inventory
+- [x] App Router / page layout 경계 — `structure.md` §4 참고
+- [x] API client 계층(`src/lib/api`) 목록화 — `route-api-matrix.md` §2 참고
+- [x] React Query hook 목록화 — `route-api-matrix.md` §3 참고
+- [x] 인증/session/profile/workspace 흐름 — `structure.md` §4 참고
+- [x] 상태 store와 client cache 구조 — `structure.md` §5 참고
+- [x] 타입 모델 경계와 generated type 사용 현황 — `structure.md` §7, `findings.md` F6 참고
 
-## 4. UX/product consistency
-- [ ] navigation/sidebar/report flow
-- [ ] monitoring/insights/crisis flow
-- [x] admin/client role surface separation — see `structure.md` §12 and `findings.md` F3/F12
-- [ ] mobile/responsive coverage hotspots
+## 2. 보안 및 취약점 점검
 
-## 5. Tests and verification surface
-- [x] existing test inventory — see `structure.md` §9 and `findings.md` F7
-- [x] missing high-value regression tests — see `structure.md` §9 and `findings.md` backlog
-- [x] smoke/e2e candidates — see `structure.md` §9 and `findings.md` backlog
+- [x] 환경 변수 노출과 client/server 경계 — `findings.md` F2/F4 참고
+- [x] 인증 guard / route 보호 구조 검토 — `route-api-matrix.md` §1 참고
+- [x] Supabase client 사용과 RLS 전제 — service-role/API matrix + client report/monitoring/crisis 추적 완료; DB policy 상세 검토는 남음. `route-api-matrix.md` §1, `structure.md` §11 참고
+- [ ] 위험한 DOM/rendering/file/url 처리 점검
+- [x] workspace/user 간 데이터 누출 가능성 — client report/PDF route-param 및 backend handoff 추적 완료. `structure.md` §11-12, `findings.md` F10/F11 참고
+- [x] 의존성/설정 리스크 메모 — `structure.md` §10, `findings.md` F9 참고
+
+## 3. 안정성 및 성능/최적화
+
+- [ ] loading/error/empty state 일관성 점검
+- [x] query invalidation/cache freshness 패턴 — `structure.md` §8 참고
+- [ ] 대용량 list/table/virtualization 패턴 점검
+- [x] build/lint warning 목록화 — `structure.md` §10, `findings.md` F8 참고
+- [ ] dead/commented code 목록화
+
+## 4. UX/제품 일관성
+
+- [ ] navigation/sidebar/report 흐름 점검
+- [ ] monitoring/insights/crisis 흐름 점검
+- [x] admin/client role surface 분리 — `structure.md` §12, `findings.md` F3/F12 참고
+- [ ] mobile/responsive 취약 지점 점검
+
+## 5. 테스트 및 검증 표면
+
+- [x] 기존 test inventory — `structure.md` §9, `findings.md` F7 참고
+- [x] 우선순위 높은 누락 regression test 후보 — `structure.md` §9, `findings.md` backlog 참고
+- [x] smoke/e2e 후보 — `structure.md` §9, `findings.md` backlog 참고
 
 ## 6. Findings backlog
-- [x] rank findings by severity/confidence — see `findings.md`
-- [x] rank improvement opportunities by impact/effort — see `findings.md` backlog
-- [x] define next read-only probes — see `structure.md` §6 and `findings.md`
+
+- [x] severity/confidence 기준 findings 정렬 — `findings.md` 참고
+- [x] impact/effort 기준 개선 기회 정렬 — `findings.md` backlog 참고
+- [x] 다음 read-only probe 정의 — `structure.md` §6, `findings.md` 참고

@@ -1,7 +1,7 @@
 # sir-frontend Route/API/Hook Matrix — pass 2
 
-작성일: 2026-06-25  
-상태: 2차 탐색 반영본. production/source 코드는 변경하지 않음.
+작성일: 2026-06-25
+상태: 2차 탐색 기반 + P0.2 PDF 개선 + 2026-06-29 policy/runbook 반영본.
 
 ## 1. Next route handler authorization matrix
 
@@ -67,23 +67,24 @@
 
 - Need decide whether unused `platformApi.ts` is dead code, reserved for future UI, or indirectly referenced outside static imports.
 - Need route handler body validation matrix: schema/no schema, numeric bounds, enum checks.
-- Need auth policy decision for `(client)` routes: admin preview allowed vs user-only.
+- Client route policy is confirmed: `user` is blocked from admin shell, while admin/super_admin client-page preview/support access must be preserved.
 - Need timeout/retry behavior review for all backend proxy fetches.
 
-## 5. Cross-repo PDF/backend handoff — pass 4
+## 5. Cross-repo PDF/backend handoff — pass 5
 
 | Frontend surface | Backend counterpart | Auth/token behavior | Workspace/report binding | Notes |
 |---|---|---|---|---|
-| `src/components/client/sidebar/PdfDownloadButton.tsx:53-65` | `sir-backend/main.py:601-613` | Browser Supabase session access token is sent as bearer; refresh token is sent in `X-Supabase-Refresh-Token`. | URL params provide `{workspaceId, reportId}` independently. | Backend accepts both tokens and delegates render to Playwright. |
-| `src/app/report-pdf/[workspaceId]/[reportId]/page.tsx:19-31` | `sir-backend/services/pdf_service.py:26-31` | Playwright receives tokens as `?at=`/`?rt=` and calls `setSession`. | Render page then passes both params to report sections. | Middleware intentionally bypassed for `/report-pdf`; see `src/middleware.ts:13-15`, `src/lib/supabase/middleware.ts:7-13`. |
-| `src/app/(client)/layout.tsx:4-9` | backend `require_user` routes | Any authenticated user can render ClientShell. | Data isolation relies on client query filters/RLS and backend membership checks where routed. | Product decision needed: admin/super_admin client-page access is either allowed preview or should redirect. |
+| `src/components/client/sidebar/PdfDownloadButton.tsx` | `sir-backend/main.py` `report_pdf` + `_assert_report_pdf_access` | Browser Supabase access token is sent as bearer; refresh token is sent in `X-Supabase-Refresh-Token`. Component verifies PDF metadata before backend delegation. | `getReportInfo(workspaceId, reportId)`/period metadata queries bind `reports.id` + `workspace_id`; backend checks caller membership and `reports.id` + `reports.workspace_id`. | Backend accepts tokens only after preflight and delegates render to Playwright; Playwright navigation URL stays token-free. |
+| `src/app/report-pdf/[workspaceId]/[reportId]/page.tsx` | `sir-backend/services/pdf_service.py` | Playwright injects `window.__SIR_PDF_SESSION__` before navigating to `/report-pdf/{workspaceId}/{reportId}`; page deletes it and calls `setSession`. | Render page also validates the route pair before report sections/PDF-ready state. | Middleware intentionally bypassed for `/report-pdf`; see `src/middleware.ts:13-15`, `src/lib/supabase/middleware.ts:7-13`. |
+| `src/app/(client)/layout.tsx:4-9` | backend `require_user` routes | Any authenticated user can render ClientShell. | Data isolation relies on client query filters/RLS and backend membership checks where routed. | Product policy confirmed 2026-06-29: admin/super_admin must be able to access all client/report screens for preview/support. |
 
-Cross-repo smoke candidates:
+Cross-repo smoke candidates are recorded in `docs/code-audit/pdf-smoke-runbook.md`:
 
-1. Client user PDF happy path: valid workspace/report/member → PDF response and `data-pdf-ready` render marker.
-2. Client user mismatch path: report from another workspace or non-member workspace → no cross-workspace data, no token URL in logs/errors.
-3. Role path: user blocked from `(app)` admin shell; admin/super_admin client surface behavior explicitly verified.
-4. Token expiry path: expired access/refresh token returns controlled failure without exposing token values.
+1. Valid client user PDF happy path: valid workspace/report/member → PDF response and `data-pdf-ready` render marker.
+2. Mismatched workspace/report path: frontend blocks invalid pair; direct backend call rejects before Playwright and no token value appears in logs/errors.
+3. Token expiry/missing session path: controlled 401/403/404 or frontend session-expired state without raw token exposure.
+4. Role path: `user` blocked from `(app)` admin shell; admin/super_admin client surface access remains allowed.
+5. Log/token hygiene spot check: no `access_token`, `refresh_token`, `Bearer <jwt>`, `?at=`, or `?rt=` values in logs.
 
-Inference: PDF security cannot be assessed from frontend route protection alone because `/report-pdf` deliberately bypasses middleware and backend supplies temporary session tokens. The effective boundary is frontend route params + backend preflight/RLS + log redaction together.
+Inference: PDF security cannot be assessed from frontend route protection alone because `/report-pdf` deliberately bypasses middleware and backend supplies a temporary injected session. The effective boundary is frontend route-pair validation + backend preflight/RLS + token-free Playwright navigation + smoke/log checks together.
 Confidence: High.

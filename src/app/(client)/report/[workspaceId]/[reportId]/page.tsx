@@ -73,7 +73,7 @@ function ClientReportContent() {
   const router = useRouter();
   const workspaceId = params?.workspaceId as string;
   const reportId = params?.reportId as string;
-  const { data: report } = useReportInfoSuspense(reportId);
+  const { data: report } = useReportInfoSuspense(workspaceId, reportId);
   const isDaily = report?.type === 'daily';
   const pdfMode = searchParams?.get('pdf') === '1';
 
@@ -81,8 +81,8 @@ function ClientReportContent() {
   // PDF 내보내기 렌더는 제외 (사용자가 실제로 본 보고서가 아님).
   const setLastReport = useLastReportStore((s) => s.setLastReport);
   useEffect(() => {
-    if (!pdfMode && workspaceId && reportId) setLastReport(workspaceId, reportId);
-  }, [pdfMode, workspaceId, reportId, setLastReport]);
+    if (!pdfMode && report && workspaceId && reportId) setLastReport(workspaceId, reportId);
+  }, [pdfMode, report, workspaceId, reportId, setLastReport]);
 
   const sections = getClientReportSections(report?.type);
   const allowedIds = new Set(sections.map((s) => s.id));
@@ -97,6 +97,19 @@ function ClientReportContent() {
     // 섹션 전환 시 스크롤 최상단으로 — ClientShell 의 <main id="client-main"> 가 실제 스크롤 컨테이너
     document.getElementById('client-main')?.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  if (!report) {
+    return (
+      <div className="min-h-screen bg-bg-light px-4 py-16">
+        <div className="mx-auto max-w-xl rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+          <p className="text-base font-semibold text-text-dark">보고서를 찾을 수 없습니다.</p>
+          <p className="mt-2 text-sm text-text-muted">
+            요청한 워크스페이스와 보고서 조합이 올바르지 않습니다.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // 주간/월간 PDF: 모든 섹션 bg-light 통일 (인쇄물 톤)
   if (pdfMode && !isDaily) {

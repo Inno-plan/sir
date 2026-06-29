@@ -19,7 +19,7 @@ export function ReportHeader({
   fullWidth = false,
 }: ReportHeaderProps) {
   const { data: workspace } = useWorkspaceSuspense(workspaceId);
-  const { data: report } = useReportInfoSuspense(reportId);
+  const { data: report } = useReportInfoSuspense(workspaceId, reportId);
 
   const periodStart = report?.period_start?.replace(/-/g, '.') ?? '';
   const periodEnd = report?.period_end?.replace(/-/g, '.') ?? '';

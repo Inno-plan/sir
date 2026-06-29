@@ -21,11 +21,12 @@ export function MobileFab() {
   const router = useRouter();
   const pathname = usePathname() ?? '';
   const searchParams = useSearchParams();
+  const workspaceId = params?.workspaceId as string | undefined;
   const reportId = (params?.reportId as string | undefined) ?? '';
   // /report/* 외 경로(모니터링/위기 대응 센터 등)에서는 FAB 자체가 의미 없으므로 비활성.
-  // 훅 순서 보존을 위해 실제 렌더만 막고 useReportInfo 는 그대로 호출 (reportId 빈 문자열이면 enabled=false 로 noop).
+  // 훅 순서 보존을 위해 실제 렌더만 막고 useReportInfo 는 그대로 호출 (params 없으면 enabled=false 로 noop).
   const onReportPath = pathname.startsWith('/report/');
-  const { data: report } = useReportInfo(reportId);
+  const { data: report } = useReportInfo(workspaceId, reportId);
   // 일간 보고서는 섹션 수가 적어 sticky 탭으로 충분 → fab 표시 안 함.
   // weekly / initial(월간) 만 노출. data 로드 전에는 보수적으로 숨김.
   const isFabEligibleType = report?.type === 'weekly' || report?.type === 'initial';
