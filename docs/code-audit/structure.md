@@ -1,7 +1,7 @@
 # sir-frontend Structure Map — pass 1
 
 작성일: 2026-06-25  
-상태: 1차 구조 탐색 완료. production/source 코드는 변경하지 않음.
+상태: 1차 구조 탐색 기반 + P0.2 PDF 개선 반영본.
 
 ## 1. Runtime / framework baseline
 
@@ -197,10 +197,10 @@ PDF handoff chain:
 
 - Evidence: `src/components/client/sidebar/PdfDownloadButton.tsx:53-65` reads the current Supabase session and sends `Authorization: Bearer <access_token>` plus `X-Supabase-Refresh-Token` to backend `/api/report/{workspaceId}/{reportId}/pdf`.
 - Evidence: `src/middleware.ts:13-15` excludes `/report-pdf` from the normal middleware matcher.
-- Evidence: `src/lib/supabase/middleware.ts:7-13` also has a code-level early return for `/report-pdf`, because Playwright uses URL token parameters instead of cookies.
-- Evidence: `src/app/report-pdf/[workspaceId]/[reportId]/page.tsx:19-31` reads `?at=` and `?rt=` from `window.location.search` and calls `supabase.auth.setSession(...)`.
-- Evidence: `src/app/report-pdf/[workspaceId]/[reportId]/page.tsx:51-68` renders report sections with both route params and marks `html[data-pdf-ready="true"]` after Suspense data resolves.
-- Backend counterpart: `sir-backend/services/pdf_service.py:26-31` constructs the token-bearing `/report-pdf/{workspaceId}/{reportId}?at=...&rt=...` URL; `sir-backend/main.py:601-613` accepts the user bearer plus refresh header.
+- Evidence: `src/lib/supabase/middleware.ts:7-13` also has a code-level early return for `/report-pdf`, because Playwright uses an injected session instead of cookies.
+- Evidence: `src/app/report-pdf/[workspaceId]/[reportId]/page.tsx:15-62` consumes `window.__SIR_PDF_SESSION__`, deletes it, and waits for `supabase.auth.setSession(...)` before rendering.
+- Evidence: `src/app/report-pdf/[workspaceId]/[reportId]/page.tsx:77-94` renders report sections with both route params and marks `html[data-pdf-ready="true"]` after Suspense data resolves.
+- Backend counterpart: `sir-backend/services/pdf_service.py` injects the session via Playwright `context.add_init_script` and navigates to token-free `/report-pdf/{workspaceId}/{reportId}`; `sir-backend/main.py` accepts the user bearer plus refresh header and preflights access.
 
 Role surface:
 
@@ -213,7 +213,7 @@ Cross-repo smoke/e2e candidates:
 
 1. PDF happy path: client user in workspace downloads a published report; backend returns PDF and frontend `/report-pdf` sets session then marks `data-pdf-ready`.
 2. PDF mismatch path: valid user token with mismatched `{workspaceId, reportId}` or non-member workspace should fail before or during render without leaking another workspace's data.
-3. Token hygiene path: failed PDF render must not log token-bearing URL or include `?at`/`?rt` in surfaced error strings.
+3. Token hygiene path: failed PDF render must not log injected token values, authorization headers, or raw session payloads in surfaced error strings.
 4. Role route path: user cannot render `(app)` admin shell; admin/super_admin access to `(client)` pages should be explicitly accepted or redirected according to product policy.
 
 Inference: the frontend half of PDF generation intentionally bypasses middleware and relies on temporary browser session setup from backend-supplied tokens. That makes backend preflight and log redaction part of the same security boundary; frontend-only tests are insufficient.
