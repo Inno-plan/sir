@@ -36,3 +36,4 @@ supabase/
 
 # Vercel CLI 로컬 링크
 .vercel
+.env*
