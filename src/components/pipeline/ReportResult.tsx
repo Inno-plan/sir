@@ -7,7 +7,6 @@ import { MOCK_CRAWL_RESULTS } from '@/constants/crawlResults';
 import { MOCK_ANALYSIS_RESULTS } from '@/constants/analysisResults';
 import { MOCK_CONTENT_STRATEGIES } from '@/constants/contentStrategies';
 import { PLATFORM_CATEGORIES } from '@/constants/platforms';
-import { generateReportPdf } from '@/utils/reportPdf';
 import { generateReportDocx } from '@/utils/reportDocx';
 
 // TODO: AI API 연동 — 리포트 미리보기 본문도 AI가 생성하도록
@@ -38,11 +37,6 @@ export function ReportResult() {
   );
   const responseCount = MOCK_CONTENT_STRATEGIES.filter((s) => !s.reportable).length;
   const reportableCount = MOCK_CONTENT_STRATEGIES.filter((s) => s.reportable).length;
-
-  const handleDownloadPdf = () => {
-    const doc = generateReportPdf(company, dateRange);
-    doc.save(`SIR_Report_${company}_${startDate}.pdf`);
-  };
 
   const handleDownloadDocx = async () => {
     const doc = generateReportDocx(company, dateRange);
@@ -122,23 +116,13 @@ export function ReportResult() {
           </div>
 
           <p className="text-xs text-slate-400 italic">
-            * 전체 상세 내용은 PDF 또는 DOCX 파일을 다운로드하여 확인하세요.
+            * 전체 상세 내용은 DOCX 파일을 다운로드하여 확인하세요.
           </p>
         </div>
       </div>
 
-      {/* Download buttons */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={handleDownloadPdf}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 active:scale-95 transition-all cursor-pointer"
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0">
-            <path d="M8 2v8M8 10l-3-3M8 10l3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M3 13h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-          보고서 다운로드(PDF)
-        </button>
+      {/* Download button */}
+      <div className="flex items-center">
         <button
           onClick={handleDownloadDocx}
           className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 active:scale-95 transition-all cursor-pointer"
