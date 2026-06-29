@@ -68,7 +68,7 @@ export function Highlight({ workspaceId, reportId, pdfMode = false, editable = f
   const [selectedChannel, setSelectedChannel] = useState<ReportChannel | null>(null);
   const [selectedRiskType, setSelectedRiskType] = useState<CriticalType | null>(null);
   const { data: workspace } = useWorkspaceSirSuspense(workspaceId);
-  const { data: report } = useReportInfoSuspense(reportId);
+  const { data: report } = useReportInfoSuspense(workspaceId, reportId);
   const { data: summary } = useWeeklySummarySuspense(workspaceId, reportId);
   const { data: sirStockData } = useSirStockDataSuspense(workspaceId, reportId);
   const { data: sirRanking } = useSirRankingSuspense(workspaceId, reportId);

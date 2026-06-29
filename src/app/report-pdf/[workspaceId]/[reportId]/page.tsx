@@ -102,17 +102,38 @@ function PdfReadyMarker() {
   // Playwright headless 가 PDF 캡처 시점을 알 수 있도록 모든 Suspense 쿼리 해소 후 마커 부착.
   // useSuspenseQuery 가 throw 하면 후속 sibling 도 렌더 안 되므로 이 컴포넌트가 렌더되면 위 섹션들 데이터 모두 도착.
   useEffect(() => {
+    delete document.documentElement.dataset.pdfError;
     document.documentElement.dataset.pdfReady = 'true';
   }, []);
   return null;
+}
+
+function PdfContractError() {
+  useEffect(() => {
+    delete document.documentElement.dataset.pdfReady;
+    document.documentElement.dataset.pdfError = 'report-workspace-mismatch';
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-white p-8">
+      <div className="mx-auto max-w-xl rounded-xl border border-slate-200 bg-slate-50 p-6 text-center">
+        <p className="text-base font-semibold text-slate-900">보고서를 찾을 수 없습니다.</p>
+        <p className="mt-2 text-sm text-slate-500">
+          요청한 워크스페이스와 보고서 조합이 올바르지 않아 PDF 렌더링을 중단했습니다.
+        </p>
+      </div>
+    </div>
+  );
 }
 
 function ReportPdfContent() {
   const params = useParams();
   const workspaceId = params?.workspaceId as string;
   const reportId = params?.reportId as string;
-  const { data: report } = useReportInfoSuspense(reportId);
+  const { data: report } = useReportInfoSuspense(workspaceId, reportId);
   const isDaily = report?.type === 'daily';
+
+  if (!report) return <PdfContractError />;
 
   return (
     <div className="p-8 bg-white min-h-screen">

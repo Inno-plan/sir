@@ -9,7 +9,11 @@ import { Download } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { LoadingOverlay } from '@/components/ui/Loading';
 
-type PdfDownloadFailureReason = 'missing-api-url' | 'missing-session' | 'http-error';
+type PdfDownloadFailureReason =
+  | 'missing-api-url'
+  | 'missing-session'
+  | 'report-workspace-mismatch'
+  | 'http-error';
 
 class PdfDownloadError extends Error {
   reason: PdfDownloadFailureReason;
@@ -38,6 +42,10 @@ function getPdfErrorToastMessage(error: unknown) {
 
   if (error.reason === 'missing-session') {
     return '로그인 세션이 만료되었습니다. 다시 로그인한 뒤 PDF를 다운로드해 주세요.';
+  }
+
+  if (error.reason === 'report-workspace-mismatch') {
+    return '보고서 정보를 찾을 수 없습니다. 새로고침 후 다시 시도해 주세요.';
   }
 
   if (error.status === 401 || error.status === 403) {
@@ -99,12 +107,14 @@ function useReportMeta(workspaceId?: string, reportId?: string) {
           .from('reports')
           .select('period_start, period_end')
           .eq('id', reportId!)
+          .eq('workspace_id', workspaceId!)
           .maybeSingle(),
       ]);
       return {
         companyName: ws?.company_name as string | undefined,
         periodStart: rp?.period_start as string | undefined,
         periodEnd: rp?.period_end as string | undefined,
+        reportMatchesWorkspace: !!rp,
       };
     },
     enabled: !!workspaceId && !!reportId,
@@ -147,6 +157,12 @@ export function PdfDownloadButton({ variant = 'sidebar' }: PdfDownloadButtonProp
       } = await supabase.auth.getSession();
       if (!session?.access_token || !session?.refresh_token) {
         throw new PdfDownloadError('missing-session', 'Supabase session is missing required tokens');
+      }
+      if (meta?.reportMatchesWorkspace === false) {
+        throw new PdfDownloadError(
+          'report-workspace-mismatch',
+          'Report does not belong to the current workspace',
+        );
       }
       const res = await fetch(`${apiBaseUrl}/api/report/${workspaceId}/${reportId}/pdf`, {
         headers: {

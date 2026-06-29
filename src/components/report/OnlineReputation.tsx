@@ -26,7 +26,7 @@ interface OnlineReputationProps {
 
 export function OnlineReputation({ workspaceId, reportId, pdfMode = false }: OnlineReputationProps) {
   const [selectedChannel, setSelectedChannel] = useState<ReportChannel | null>(null);
-  const { data: report } = useReportInfoSuspense(reportId);
+  const { data: report } = useReportInfoSuspense(workspaceId, reportId);
   const { data: channelItems } = useChannelItemsSuspense(workspaceId, reportId);
   const { data: channelStats } = useChannelStatsSuspense(
     workspaceId,

@@ -22,7 +22,7 @@ import { getWorkspace } from '@/lib/api/workspaceApi';
 import { getMonitoringDaily } from '@/lib/api/monitoringApi';
 
 export const reportKeys = {
-  info: (reportId: string) => ['report', reportId, 'info'] as const,
+  info: (workspaceId: string, reportId: string) => ['report', workspaceId, reportId, 'info'] as const,
   summary: (id: string) => ['report', id, 'summary'] as const,
   sirStock: (id: string) => ['report', id, 'sirStock'] as const,
   sirRanking: (id: string) => ['report', id, 'sirRanking'] as const,
@@ -52,11 +52,11 @@ const REPORT_OPTS = {
 } as const;
 
 /** 리포트 기본 정보 (type, period, status, sir_score) */
-export function useReportInfo(reportId: string) {
+export function useReportInfo(workspaceId: string | undefined, reportId: string | undefined) {
   return useQuery({
-    queryKey: reportKeys.info(reportId),
-    queryFn: () => getReportInfo(reportId),
-    enabled: !!reportId,
+    queryKey: reportKeys.info(workspaceId ?? '', reportId ?? ''),
+    queryFn: () => getReportInfo(workspaceId!, reportId!),
+    enabled: !!workspaceId && !!reportId,
     ...REPORT_OPTS,
   });
 }
@@ -223,10 +223,10 @@ export function useResolvedRiskReports(workspaceId: string, periodStart?: string
 // React 가 자동 waterfall 처리.
 // enabled 조건이 필요한 쿼리는 skipToken 으로 스킵 (이 경우 data 가 undefined 가능).
 
-export function useReportInfoSuspense(reportId: string) {
+export function useReportInfoSuspense(workspaceId: string, reportId: string) {
   return useSuspenseQuery({
-    queryKey: reportKeys.info(reportId),
-    queryFn: () => getReportInfo(reportId),
+    queryKey: reportKeys.info(workspaceId, reportId),
+    queryFn: () => getReportInfo(workspaceId, reportId),
     ...REPORT_OPTS,
   });
 }

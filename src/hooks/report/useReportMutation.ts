@@ -72,7 +72,7 @@ export function usePublishReport(reportId: string, workspaceId: string) {
     mutationFn: () => publishReport(reportId),
     onSuccess: () => {
       // 보고서 자체 (status published)
-      queryClient.refetchQueries({ queryKey: reportKeys.info(reportId) });
+      queryClient.refetchQueries({ queryKey: reportKeys.info(workspaceId, reportId) });
       // workspace 단위 query — 보고서 목록 / progress / sir_score 갱신.
       // 발행 시 update_workspace_sir 로 workspaces.sir_score 도 바뀌므로 detail 도 invalidate.
       queryClient.invalidateQueries({ queryKey: workspaceKeys.reports(workspaceId) });
