@@ -12,7 +12,7 @@ const ONE_HOUR = 60 * 60 * 1000;
  *
  *  - workspaceId 가 같으면 [start, end] 가 바뀌어도 추가 fetch 없음 (queryKey = workspaceId only)
  *  - 슬라이스 후 max=100 으로 재정규화 → 5 프리셋 간 비교 가능
- *  - 반환 타입은 기존 MonitoringSearchPoint 와 호환 (google 은 항상 null)
+ *  - 반환 타입은 Naver-only MonitoringSearchPoint
  */
 export function useMonitoringSearchLive(
   workspaceId: string,
@@ -33,12 +33,11 @@ export function useMonitoringSearchLive(
     if (!inRange.length) return [];
     const max = inRange.reduce((m, p) => (p.ratio > m ? p.ratio : m), 0);
     if (max <= 0) {
-      return inRange.map((p) => ({ date: p.date, naver: 0, google: null }));
+      return inRange.map((p) => ({ date: p.date, naver: 0 }));
     }
     return inRange.map((p) => ({
       date: p.date,
       naver: Math.round((p.ratio / max) * 100),
-      google: null,
     }));
   }, [query.data, start, end]);
 

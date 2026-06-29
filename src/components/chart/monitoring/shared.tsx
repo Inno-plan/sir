@@ -22,7 +22,6 @@ export type MergedPoint = MonitoringDayPoint & {
   risks: Record<CriticalType, number>;
   riskTotal: number;
   searchNaver: number | null;
-  searchGoogle: number | null;
 };
 
 export type SentimentSeriesPoint = {

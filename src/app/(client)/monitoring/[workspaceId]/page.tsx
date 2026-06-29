@@ -149,7 +149,6 @@ export default function MonitoringPage() {
           risks: r?.byType ?? { defamation: 0, insult: 0, rumor: 0, spam: 0 },
           riskTotal: r?.total ?? 0,
           searchNaver: null,
-          searchGoogle: null,
         };
       });
   }, [daily, stock, risks]);

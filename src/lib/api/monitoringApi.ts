@@ -65,7 +65,6 @@ export interface MonitoringRiskPoint {
 export interface MonitoringSearchPoint {
   date: string;
   naver: number | null;
-  google: number | null;
 }
 
 // ── 채널 매트릭스 (E 탭 sentiment 토글용) ─────────────────────────

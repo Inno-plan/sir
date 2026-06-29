@@ -115,21 +115,6 @@ export const MOCK_ANALYSIS_RESULTS: PlatformAnalysis[] = [
     flagged: [],
   },
   {
-    platformId: 'google',
-    platformLabel: '구글',
-    category: '포털',
-    sirScore: 80,
-    positive: 70,
-    neutral: 20,
-    negative: 10,
-    articles: [
-      { title: 'Samsung Electronics Q2 earnings beat expectations', url: 'https://google.com/search?q=samsung+electronics+1', sentiment: 'positive' },
-      { title: 'Samsung HBM expansion plans revealed', url: 'https://google.com/search?q=samsung+electronics+2', sentiment: 'positive' },
-      { title: 'Samsung Galaxy S26 launch date rumors', url: 'https://google.com/search?q=samsung+electronics+3', sentiment: 'neutral' },
-    ],
-    flagged: [],
-  },
-  {
     platformId: 'naver',
     platformLabel: '네이버',
     category: '포털',
