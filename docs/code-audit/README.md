@@ -5,6 +5,8 @@
 - `checklist.md`: 전체 점검 워크 트리와 진행 상태
 - `structure.md`: 구조/데이터 흐름 요약
 - `findings.md`: 취약점·개선점 후보와 근거
+- `route-api-matrix.md`: Next route/API/hook auth·workspace matrix
+- `pdf-smoke-runbook.md`: cross-repo PDF 수동 smoke 시나리오
 
 ## Ongoing audit branch workflow
 

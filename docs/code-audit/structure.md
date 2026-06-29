@@ -1,7 +1,7 @@
 # sir-frontend Structure Map — pass 1
 
-작성일: 2026-06-25  
-상태: 1차 구조 탐색 기반 + P0.2 PDF 개선 반영본.
+작성일: 2026-06-25
+상태: 1차 구조 탐색 기반 + P0.2 PDF 개선 + 2026-06-29 policy confirmation 반영본.
 
 ## 1. Runtime / framework baseline
 
@@ -63,8 +63,8 @@ Confidence: High.
 - Evidence: `src/app/(client)/layout.tsx:6-9` — client shell은 현재 `getCurrentUser()` 후 별도 role 차단 없이 렌더.
 - Evidence: `src/lib/auth/resolveLandingPath.ts:12-29` — `get_user_landing` RPC로 role/workspace/report 기반 landing path 결정.
 
-Inference: admin route 보호는 middleware + layout 이중 guard가 있고, client route는 authenticated user이면 접근 가능하도록 설계된 것으로 보인다. 이것이 의도인지, admin preview 허용인지, user-only surface인지 추가 정책 확인이 필요하다.
-Confidence: Medium.
+Inference: admin route 보호는 middleware + layout 이중 guard가 있고, client route는 authenticated user이면 접근 가능하다. 2026-06-29 사용자 결정에 따라 admin/super_admin은 고객 화면 preview/support 목적으로 모든 client report/monitoring/crisis 화면 접근이 가능해야 하므로 현재 동작은 정책에 부합한다.
+Confidence: High.
 
 ## 5. State / cache flow
 
