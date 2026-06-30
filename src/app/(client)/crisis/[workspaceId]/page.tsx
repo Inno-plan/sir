@@ -103,12 +103,14 @@ export default function CrisisCenterPage() {
   const deleteMutation = useDeleteRiskReport(workspaceId);
 
 
-  // requested = 사용자가 요청만 한 상태(취소 가능). 그 외(pending/resolved/rejected) = admin 처리 시작 → 취소 불가.
+  // detected = AI가 자동 감지만 한 상태라 사용자가 아직 신고 대행을 요청한 것으로 보지 않는다.
+  // requested = 사용자가 요청만 한 상태(취소 가능). pending/resolved/rejected = admin 처리 시작 → 취소 불가.
   const { reportedSourceIds, riskReportBySourceId, processedSourceIds } = useMemo(() => {
     const ids = new Set<string>();
     const map = new Map<string, string>();
     const processed = new Set<string>();
     for (const rr of riskReports ?? []) {
+      if (rr.status === 'detected') continue;
       ids.add(rr.source_id);
       map.set(rr.source_id, rr.id);
       if (rr.status !== 'requested') processed.add(rr.source_id);
@@ -116,10 +118,12 @@ export default function CrisisCenterPage() {
     return { reportedSourceIds: ids, riskReportBySourceId: map, processedSourceIds: processed };
   }, [riskReports]);
 
-  // 리스크 콘텐츠 처리 결과: 신고 등록 이후 모든 단계
-  // (requested 요청 완료 / pending 결과 대기 / resolved 삭제 완료 / rejected 삭제 반려)
+  // 리스크 콘텐츠 처리 결과: 신고 등록 이후 모든 단계만 노출.
+  // detected 는 관리자 리스크 관리용 자동 감지 상태라 고객의 신고 요청/처리 결과로 보지 않는다.
+  // (requested 요청 완료 / pending 삭제 처리 중 / resolved 삭제 완료 / rejected 삭제 불가)
   const processedReports = useMemo(() => {
     return (riskReports ?? [])
+      .filter((rr) => rr.status !== 'detected')
       .slice()
       .sort((a, b) =>
         (b.resolved_at ?? b.requested_at ?? '').localeCompare(a.resolved_at ?? a.requested_at ?? '')

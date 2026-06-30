@@ -5,8 +5,8 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions, Listbox, ListboxButton, ListboxOption, ListboxOptions } from '@headlessui/react';
-import { ChevronDown, ChevronLeft, ChevronRight, Check, Paperclip, Download, ShieldAlert } from 'lucide-react';
-import { useWorkspaces, useWorkspaceSubscription } from '@/hooks/workspace/useWorkspaceQuery';
+import { ChevronDown, ChevronLeft, ChevronRight, Check, Paperclip, Download } from 'lucide-react';
+import { useWorkspaces } from '@/hooks/workspace/useWorkspaceQuery';
 import { useRiskReports } from '@/hooks/report/useReportQuery';
 import { useUpdateRiskReport } from '@/hooks/report/useReportMutation';
 import { getErrorMessage } from '@/lib/utils';
@@ -22,27 +22,44 @@ const PAGE_SIZE = 50;
 type SortKey = 'requested_desc' | 'requested_asc' | 'company' | 'status';
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: 'requested_desc', label: '신청일 최신순' },
-  { value: 'requested_asc', label: '신청일 오래된순' },
+  { value: 'requested_desc', label: '감지/신청일 최신순' },
+  { value: 'requested_asc', label: '감지/신청일 오래된순' },
   { value: 'company', label: '회사명' },
   { value: 'status', label: '처리 상태' },
 ];
 
 const STATUS_OPTIONS = [
+  { value: 'detected', label: '미처리' },
   { value: 'requested', label: '요청 완료' },
-  { value: 'pending', label: '결과 대기' },
+  { value: 'pending', label: '삭제 처리 중' },
   { value: 'resolved', label: '삭제 완료' },
-  { value: 'rejected', label: '삭제 반려' },
+  { value: 'rejected', label: '삭제 불가' },
 ] as const;
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
-  requested: { label: '요청 완료', className: 'bg-slate-100 text-slate-600' },
-  pending: { label: '결과 대기', className: 'bg-amber-50 text-amber-600' },
+  detected: { label: '미처리', className: 'bg-zinc-100 text-zinc-600' },
+  requested: { label: '요청 완료', className: 'bg-blue-50 text-blue-600' },
+  pending: { label: '삭제 처리 중', className: 'bg-amber-50 text-amber-600' },
   resolved: { label: '삭제 완료', className: 'bg-blue-50 text-blue-600' },
-  rejected: { label: '삭제 반려', className: 'bg-red-50 text-red-600' },
+  rejected: { label: '삭제 불가', className: 'bg-red-50 text-red-600' },
 };
 
+const UNKNOWN_STATUS_STYLE = { label: '알 수 없음', className: 'bg-slate-100 text-slate-600' };
+
+function normalizeStatus(status: string | null | undefined): string {
+  return (status ?? '').trim().toLowerCase();
+}
+
+function getStatusConfig(status: string | null | undefined): { label: string; className: string } {
+  const normalized = normalizeStatus(status);
+  return STATUS_STYLES[normalized] ?? {
+    ...UNKNOWN_STATUS_STYLE,
+    label: status?.trim() || UNKNOWN_STATUS_STYLE.label,
+  };
+}
+
 const PLATFORM_LABELS: Record<string, string> = {
+  naver_news: '뉴스',
   naver_blog: '블로그',
   youtube: '유튜브',
   naver_stock: '종토방',
@@ -123,19 +140,20 @@ function WorkspaceCombobox({
 // ── 상세 모달 ──
 
 function DetailModal({ report, onClose }: { report: RiskReport; onClose: () => void }) {
-  const [status, setStatus] = useState(report.status);
+  const initialStatus = normalizeStatus(report.status);
+  const [status, setStatus] = useState(initialStatus);
   const [adminNote, setAdminNote] = useState(report.admin_note ?? '');
   const [showConfirm, setShowConfirm] = useState(false);
 
   const update = useUpdateRiskReport(report.workspace_id);
   const saving = update.isPending;
 
-  const statusChanged = status !== report.status;
+  const statusChanged = status !== initialStatus;
   const noteChanged = adminNote !== (report.admin_note ?? '');
   const hasChanges = statusChanged || noteChanged;
 
-  const oldStatusLabel = STATUS_STYLES[report.status]?.label ?? report.status;
-  const newStatusLabel = STATUS_OPTIONS.find((s) => s.value === status)?.label ?? status;
+  const oldStatusLabel = getStatusConfig(report.status).label;
+  const newStatusLabel = getStatusConfig(status).label;
 
   const doSave = async () => {
     try {
@@ -161,7 +179,7 @@ function DetailModal({ report, onClose }: { report: RiskReport; onClose: () => v
     <Modal
       open
       onClose={onClose}
-      title="신고 대행 요청 상세"
+      title="리스크 항목 상세"
       size="lg"
       footer={
         <Button onClick={handleSaveClick} disabled={!hasChanges || saving}>
@@ -170,7 +188,7 @@ function DetailModal({ report, onClose }: { report: RiskReport; onClose: () => v
       }
     >
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-text-dark">신고 게시물</label>
+        <label className="text-sm font-semibold text-text-dark">리스크 콘텐츠</label>
         <div className="bg-bg-blue rounded-lg px-4 py-3">
           <a href={report.link} target="_blank" rel="noopener noreferrer" className="text-sm text-text-accent hover:underline">
             {report.title}
@@ -190,12 +208,12 @@ function DetailModal({ report, onClose }: { report: RiskReport; onClose: () => v
       </div>
 
       <div className="flex flex-col gap-1">
-        <span className="text-xs font-semibold text-text-muted">신고 사유</span>
+        <span className="text-xs font-semibold text-text-muted">사유</span>
         <span className="text-sm text-text-dark">{report.reason}</span>
       </div>
 
       <div className="flex flex-col gap-1">
-        <span className="text-xs font-semibold text-text-muted">신고 근거</span>
+        <span className="text-xs font-semibold text-text-muted">근거</span>
         <div className="bg-bg-light rounded-lg px-4 py-3 text-sm text-text-dark whitespace-pre-line">
           {report.evidence}
         </div>
@@ -335,13 +353,6 @@ export function RiskReportsClient({ assignedIds }: RiskReportsClientProps) {
     selectedReportId || undefined,
   );
 
-  // 선택된 워크스페이스의 아머 활성 여부. 전체(빈 selectedWsId)면 체크 스킵.
-  const { data: selectedSub } = useWorkspaceSubscription(selectedWsId);
-  const selectedHasArmor = selectedWsId
-    ? selectedSub?.has_armor ?? null  // null: 로딩 중
-    : true; // 전체는 게이트 안 함
-  const showArmorEmpty = selectedWsId !== '' && selectedHasArmor === false;
-
   // admin 은 배정받은 ws 의 risk 만 보이도록 클라이언트에서 한 번 더 필터
   const riskReports = useMemo(() => {
     if (assignedIds === null) return rawRiskReports;
@@ -374,7 +385,7 @@ export function RiskReportsClient({ assignedIds }: RiskReportsClientProps) {
   const filtered = useMemo(() => {
     let list = riskReports ?? [];
     if (statusFilter !== 'all') {
-      list = list.filter((r) => r.status === statusFilter);
+      list = list.filter((r) => normalizeStatus(r.status) === statusFilter);
     }
     return list;
   }, [riskReports, statusFilter]);
@@ -390,7 +401,7 @@ export function RiskReportsClient({ assignedIds }: RiskReportsClientProps) {
         case 'company':
           return (wsMap.get(a.workspace_id) ?? '').localeCompare(wsMap.get(b.workspace_id) ?? '');
         case 'status':
-          return a.status.localeCompare(b.status);
+          return getStatusConfig(a.status).label.localeCompare(getStatusConfig(b.status).label);
         default:
           return 0;
       }
@@ -472,7 +483,7 @@ export function RiskReportsClient({ assignedIds }: RiskReportsClientProps) {
             {STATUS_FILTERS.map((f) => {
               const count = f.key === 'all'
                 ? (riskReports ?? []).length
-                : (riskReports ?? []).filter((r) => r.status === f.key).length;
+                : (riskReports ?? []).filter((r) => normalizeStatus(r.status) === f.key).length;
               const active = statusFilter === f.key;
               return (
                 <button
@@ -488,65 +499,54 @@ export function RiskReportsClient({ assignedIds }: RiskReportsClientProps) {
               );
             })}
           </div>
-          {/* 헤더 (데스크톱만) — 탭과 함께 flex-1 overflow-y-auto 위에 위치해 자동 고정 */}
-          <div className="hidden lg:grid bg-white grid-cols-[8%_10%_8%_8%_1fr_12%] border-b border-slate-100 py-3 px-4 text-xs font-semibold text-slate-500 text-center shrink-0">
-            <div>신고일</div>
-            <div>회사명</div>
-            <div>채널명</div>
-            <div>신고 사유</div>
-            <div className="text-left pl-2">세부 내용</div>
-            <div>상태</div>
-          </div>
+          {/* 스크롤 영역: 헤더와 바디가 같은 스크롤바 폭을 공유해야 컬럼 정렬이 어긋나지 않는다. */}
+          <div className="flex-1 overflow-y-auto [scrollbar-gutter:stable]">
+            {/* 헤더 (데스크톱만) — 같은 스크롤 컨테이너 안에서 sticky 고정 */}
+            <div className="hidden lg:grid sticky top-0 z-10 bg-white grid-cols-[8%_10%_8%_8%_1fr_12%] border-b border-slate-100 py-3 px-4 text-xs font-semibold text-slate-500 text-center">
+              <div>감지/요청일</div>
+              <div>회사명</div>
+              <div>채널명</div>
+              <div>사유</div>
+              <div className="text-left pl-2">세부 내용</div>
+              <div>상태</div>
+            </div>
 
-          {/* 바디 */}
-          {isLoading ? (
-            <div className="flex-1 flex items-center justify-center">
-              <p className="text-xs text-text-muted">불러오는 중...</p>
-            </div>
-          ) : showArmorEmpty ? (
-            <div className="flex-1 flex items-center justify-center px-6">
-              <div className="flex flex-col items-center gap-2 text-center py-10">
-                <ShieldAlert size={28} className="text-bg-accent" />
-                <p className="text-sm font-semibold text-text-dark">
-                  이 워크스페이스는 아머 서비스를 이용하고 있지 않습니다.
-                </p>
-                <p className="text-xs text-text-muted leading-relaxed">
-                  아머(신고 대행) 미구독 워크스페이스는 신고 대행 요청을 등록할 수 없습니다.
-                </p>
+            {isLoading ? (
+              <div className="min-h-48 flex items-center justify-center">
+                <p className="text-xs text-text-muted">불러오는 중...</p>
               </div>
-            </div>
-          ) : sorted.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center px-6 text-center">
-              {(riskReports?.length ?? 0) === 0 ? (
-                <p className="text-xs text-text-muted">
-                  {selectedReportId
-                    ? '선택한 보고서에 등록된 신고 대행 요청이 없습니다.'
-                    : selectedWsId
-                      ? '이 워크스페이스에 등록된 신고 대행 요청이 없습니다.'
-                      : '신고 대행 요청이 없습니다.'}
-                </p>
-              ) : (
-                <div className="flex flex-col items-center gap-2">
+            ) : sorted.length === 0 ? (
+              <div className="min-h-48 flex items-center justify-center px-6 text-center">
+                {(riskReports?.length ?? 0) === 0 ? (
                   <p className="text-xs text-text-muted">
-                    <span className="font-semibold text-slate-700">
-                      {STATUS_FILTERS.find((s) => s.key === statusFilter)?.label}
-                    </span>
-                    {' '}상태의 신고가 없습니다.
+                    {selectedReportId
+                      ? '선택한 보고서에 등록된 리스크 항목이 없습니다.'
+                      : selectedWsId
+                        ? '이 워크스페이스에 등록된 리스크 항목이 없습니다.'
+                        : '리스크 항목이 없습니다.'}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => handleStatusFilterChange('all')}
-                    className="text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
-                  >
-                    전체 보기
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="flex-1 overflow-y-auto">
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <p className="text-xs text-text-muted">
+                      <span className="font-semibold text-slate-700">
+                        {STATUS_FILTERS.find((s) => s.key === statusFilter)?.label}
+                      </span>
+                      {' '}상태의 리스크 항목이 없습니다.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleStatusFilterChange('all')}
+                      className="text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
+                    >
+                      전체 보기
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
               {paged.map((rr) => {
-                const statusCfg = STATUS_STYLES[rr.status] ?? { label: rr.status, className: 'bg-slate-100 text-slate-600' };
+                const statusCfg = getStatusConfig(rr.status);
                 const requestedLabel = rr.requested_at?.slice(5, 10).replace(/-/g, '.') ?? '';
                 const companyLabel = wsMap.get(rr.workspace_id) ?? '';
                 const platformLabel = PLATFORM_LABELS[rr.platform_id] ?? rr.platform_id;
@@ -620,8 +620,9 @@ export function RiskReportsClient({ assignedIds }: RiskReportsClientProps) {
                   </div>
                 );
               })}
-            </div>
-          )}
+              </>
+            )}
+          </div>
 
           {/* 페이지네이션 + 총 건수 */}
           <div className="flex items-center justify-between gap-3 px-4 py-2 shrink-0 border-t border-slate-50">
