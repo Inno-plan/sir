@@ -5,6 +5,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js';
 export const dynamic = 'force-dynamic';
 
 const DATALAB_URL = 'https://openapi.naver.com/v1/datalab/search';
+const DATALAB_TIMEOUT_MS = 15_000;
 
 interface Body {
   workspace_id: string;
@@ -36,6 +37,14 @@ function kstYesterdayStr(): string {
     .slice(0, 10);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isTimeoutError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'TimeoutError';
+}
+
 /** 모니터링 검색 트렌드 — 네이버 데이터랩 일배치 캐시 + route handler.
  *
  * 1) Supabase RLS 로 워크스페이스 접근 권한 확인 + company_name 조회
@@ -63,7 +72,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { workspace_id } = (await req.json()) as Body;
+  let body: Body;
+  try {
+    const parsed = await req.json();
+    if (!isRecord(parsed) || typeof parsed.workspace_id !== 'string') {
+      return NextResponse.json({ error: 'workspace_id 누락' }, { status: 400 });
+    }
+    body = { workspace_id: parsed.workspace_id.trim() };
+  } catch {
+    return NextResponse.json({ error: '유효한 JSON body 필요' }, { status: 400 });
+  }
+
+  const { workspace_id } = body;
   if (!workspace_id) {
     return NextResponse.json({ error: 'workspace_id 누락' }, { status: 400 });
   }
@@ -145,6 +165,7 @@ export async function POST(req: NextRequest) {
         timeUnit: 'date',
         keywordGroups: [{ groupName: keyword, keywords: [keyword] }],
       }),
+      signal: AbortSignal.timeout(DATALAB_TIMEOUT_MS),
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
@@ -167,8 +188,9 @@ export async function POST(req: NextRequest) {
     }
     datalab = (await res.json()) as DatalabResponse;
   } catch (e) {
+    const timeout = isTimeoutError(e);
     const message = e instanceof Error ? e.message : String(e);
-    console.error('[search-trend] fetch 실패:', message);
+    console.error('[search-trend] fetch 실패:', message.slice(0, 300));
     if (cached) {
       return NextResponse.json({
         keyword: cached.keyword,
@@ -180,8 +202,8 @@ export async function POST(req: NextRequest) {
       });
     }
     return NextResponse.json(
-      { error: `네이버 데이터랩 호출 실패: ${message}` },
-      { status: 502 },
+      { error: timeout ? '네이버 데이터랩 호출 시간 초과' : '네이버 데이터랩 호출 실패' },
+      { status: timeout ? 504 : 502 },
     );
   }
 
