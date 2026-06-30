@@ -1,7 +1,7 @@
 # sir-frontend Findings — pass 3
 
 작성일: 2026-06-25
-최종 업데이트: 2026-06-30 — create-user super_admin 제한, dead report-create UI path 제거, Phase 2 report/workspace hardening 반영.
+최종 업데이트: 2026-06-30 — create-user super_admin 제한, service-role body validation 보강, dead report-create UI path 제거 반영.
 표기: Evidence = 코드/설정 직접 근거, Inference = 근거 기반 추론, Unknown = 추가 확인 필요.
 
 ## Ranked findings
@@ -9,7 +9,7 @@
 | Rank | Area | Finding | Severity | Confidence | Basis |
 |---:|---|---|---|---|---|
 | 1 | PDF auth | `/report-pdf`가 middleware를 우회하지만 P0.2에서 access/refresh token을 URL query 대신 Playwright injected session으로 전달한다. URL history/log/referrer 노출면은 줄었고, 남은 리스크는 user token을 backend→browser context로 위임하는 구조 자체다. | Low/Medium | High | `src/middleware.ts:13-15`, `src/lib/supabase/middleware.ts:8-13`, `src/app/report-pdf/[workspaceId]/[reportId]/page.tsx:15-62`, backend `sir-backend/services/pdf_service.py:18-84` |
-| 2 | Service role boundary | Next route handlers가 service-role로 RLS를 우회하는 admin/cache 작업을 수행한다. `create-user`는 super_admin 전용으로 좁혔고, 나머지 route별 입력 검증/감사 일관성은 별도 매트릭스 필요. | Medium | High | `src/app/api/admin/create-user/route.ts:9-28`, `src/app/api/admin/reset-password/route.ts:8-43`, `src/app/api/admin/workspace-tokens/[workspaceId]/route.ts:13-52`, `src/app/api/monitoring/search-trend/route.ts:90-94` |
+| 2 | Service role boundary | Next route handlers가 service-role로 RLS를 우회하는 admin/cache 작업을 수행한다. `create-user`는 super_admin 전용으로 좁혔고, 고위험 service-role body validation 일부를 보강했다. 나머지 route별 감사 로그/검증 일관성은 별도 매트릭스 필요. | Medium | High | `src/app/api/admin/create-user/route.ts`, `src/app/api/admin/reset-password/route.ts`, `src/app/api/admin/workspace-tokens/[workspaceId]/route.ts`, `src/app/api/monitoring/search-trend/route.ts` |
 | 3 | Client route policy | `user`는 admin shell 진입이 차단되고, admin/super_admin은 고객 화면 preview/지원 목적으로 client route 접근이 허용되는 정책으로 확인됐다. | Policy confirmed / Low | High | `src/lib/supabase/middleware.ts:63-94`, `src/app/(app)/layout.tsx:8-16`, `src/app/(client)/layout.tsx:6-9`; user decision 2026-06-29 |
 | 4 | Environment secret handling | `.env.local`에 실제 secret이 로컬 평문으로 존재한다. git에는 ignore되지만 로컬/협업/캡처 유출 위험은 남는다. | Low/Process | High | `.env.local` key names, `.gitignore:16` ignores `*.local`, `git ls-files` shows not tracked |
 | 5 | Error/network resilience | backend proxy route 일부는 기본 fetch 위주이고, timeout/circuit-breaker 공통 유틸은 아직 확인되지 않았다. | Low/Medium | Medium | `src/app/api/monitoring/ai-analysis/*.ts` scan; detailed utility search pending |
@@ -37,9 +37,9 @@ Verification note:
 
 ### F2. Service-role route boundary
 
-- Evidence: `src/app/api/admin/create-user/route.ts:9-23` now requires caller role `super_admin` before service-role use at `:25-28`; `admin` callers receive `403`.
+- Evidence: `src/app/api/admin/create-user/route.ts` now requires caller role `super_admin` before service-role use; `admin` callers receive `403`. The handler also rejects non-object/invalid JSON, unknown `role`, invalid `tier`, and non-increasing subscription date ranges before any service-role write.
 - Evidence: `src/app/api/admin/reset-password/route.ts:8-22` restricts reset to `super_admin`, then service-role admin update at `:38-43`.
-- Evidence: `src/app/api/admin/workspace-tokens/[workspaceId]/route.ts:18-30` restricts PATCH to `super_admin`, then service-role at `:49-52`.
+- Evidence: `src/app/api/admin/workspace-tokens/[workspaceId]/route.ts` restricts PATCH to `super_admin`, then validates token patch body so `monthly_quota` must be a non-negative integer and `add_tokens` must be an integer before service-role RPC/update.
 - Evidence: `src/app/api/monitoring/search-trend/route.ts:71-82` checks workspace access via RLS before service-role cache SELECT/UPSERT at `:90-94` and `:191-205`.
 
 Inference: service-role usage is not automatically unsafe because routes perform role/membership checks first. The improvement target is consistency: route-by-route matrix of caller role, workspace validation, body validation, side effect, and audit log presence.
@@ -137,7 +137,7 @@ Inference: full-stack PDF coverage remains manual for now because it depends on 
 
 ## Improvement backlog candidates
 
-1. Create/extend route-handler body validation matrix for all `src/app/api/**/route.ts` (schema/no schema, numeric bounds, enum checks, error shape).
+1. Continue route-handler body validation matrix for remaining `src/app/api/**/route.ts` (schema/no schema, numeric bounds, enum checks, error shape); high-risk create-user/workspace-token mutation bodies now have explicit guards.
 2. Add common backend proxy helper with timeout and normalized error shape for monitoring AI proxy routes.
 3. Regenerate Supabase DB types now that `risk_notice_reads` is confirmed applied, then replace/retire raw PostgREST type escape if practical.
 4. Add explicit `typecheck` and CI-safe test scripts; keep live/operational smoke scripts behind env guards.

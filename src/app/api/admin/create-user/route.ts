@@ -6,6 +6,32 @@ import { checkPassword, PASSWORD_POLICY_MESSAGE } from '@/lib/auth/passwordPolic
 
 export const dynamic = 'force-dynamic';
 
+type CreateUserRole = 'super_admin' | 'admin' | 'user';
+
+const VALID_ROLES = new Set<CreateUserRole>(['super_admin', 'admin', 'user']);
+const VALID_TIERS = new Set([
+  'white',
+  'red',
+  'blue',
+  'black',
+  'white_plus',
+  'red_plus',
+  'blue_plus',
+  'black_plus',
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function requiredString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function optionalString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
 export async function POST(request: NextRequest) {
   // 호출자 권한 검증 — 계정 생성은 super_admin 만 허용
   const supabaseUser = await createServerClient();
@@ -22,23 +48,35 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ detail: '최고 관리자 권한 필요' }, { status: 403 });
   }
 
-  const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-  const body = await request.json();
+  let body: Record<string, unknown>;
+  try {
+    const parsed = await request.json();
+    if (!isRecord(parsed)) {
+      return NextResponse.json({ detail: 'JSON object body 필요' }, { status: 400 });
+    }
+    body = parsed;
+  } catch {
+    return NextResponse.json({ detail: '유효한 JSON body 필요' }, { status: 400 });
+  }
+
   const {
-    email,
     password,
-    role = 'user',
-    company_name,
-    ticker,
-    industry,
-    business_summary,
-    tier,
-    subscription_start,
-    subscription_end,
   } = body;
+  const email = requiredString(body.email);
+  const company_name = requiredString(body.company_name);
+  const roleValue = typeof body.role === 'string' ? body.role : 'user';
+  if (!VALID_ROLES.has(roleValue as CreateUserRole)) {
+    return NextResponse.json({ detail: 'role 값이 올바르지 않습니다' }, { status: 400 });
+  }
+  const role = roleValue as CreateUserRole;
+  const ticker = requiredString(body.ticker);
+  const tier = typeof body.tier === 'string' ? body.tier : '';
+  const subscription_start =
+    typeof body.subscription_start === 'string' ? body.subscription_start : '';
+  const subscription_end =
+    typeof body.subscription_end === 'string' ? body.subscription_end : '';
+  const industry = optionalString(body.industry);
+  const business_summary = optionalString(body.business_summary);
 
   if (!email || !password || !company_name) {
     return NextResponse.json(
@@ -46,7 +84,7 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-  if (!checkPassword(password).ok) {
+  if (typeof password !== 'string' || !checkPassword(password).ok) {
     return NextResponse.json({ detail: PASSWORD_POLICY_MESSAGE }, { status: 400 });
   }
   if (
@@ -58,6 +96,24 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
+  if (role === 'user' && !VALID_TIERS.has(tier)) {
+    return NextResponse.json({ detail: 'tier 값이 올바르지 않습니다' }, { status: 400 });
+  }
+  if (role === 'user') {
+    const startedAt = Date.parse(subscription_start);
+    const endedAt = Date.parse(subscription_end);
+    if (!Number.isFinite(startedAt) || !Number.isFinite(endedAt) || startedAt >= endedAt) {
+      return NextResponse.json(
+        { detail: '계약 시작일은 종료일보다 이전이어야 합니다' },
+        { status: 400 },
+      );
+    }
+  }
+
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
 
   // 1. auth.users 생성 (트리거로 user_profiles 자동 생성, 기본 role='user')
   const { data, error } = await supabaseAdmin.auth.admin.createUser({

@@ -1,18 +1,18 @@
 # sir-frontend Route/API/Hook Matrix — pass 2
 
 작성일: 2026-06-25
-상태: 2차 탐색 기반 + P0.2 PDF 개선 + 2026-06-30 create-user/dead-code remediation 반영본.
+상태: 2차 탐색 기반 + P0.2 PDF 개선 + 2026-06-30 create-user/body-validation/dead-code remediation 반영본.
 
 ## 1. Next route handler authorization matrix
 
 | Route file | Method | Auth source | Role check | Service-role use | Backend proxy | Workspace validation | Notes |
 |---|---:|---|---|---|---|---|---|
 | `src/app/api/admin/clear-critical/route.ts` | POST | Supabase SSR `auth.getUser()` | `user_profiles.role` admin/super_admin | Yes | No | No workspace validation; platform/id only | Admin critical clear mutation. Target row validation is platform/id based. |
-| `src/app/api/admin/create-user/route.ts` | POST | Supabase SSR `auth.getUser()` | super_admin only (`:16-23`) | Yes (`:25-28`) | No | Creates workspace via RPC for user role | Admin callers are now rejected; requires email/password/company; user role requires ticker/tier/subscription dates. |
+| `src/app/api/admin/create-user/route.ts` | POST | Supabase SSR `auth.getUser()` | super_admin only | Yes | No | Creates workspace via RPC for user role | Rejects invalid JSON/body, unknown role, invalid tier, and subscription_start >= subscription_end before service-role writes. |
 | `src/app/api/admin/publish-report/route.ts` | POST | Supabase SSR `auth.getUser()` | admin/super_admin | Yes | No | report id/status only | Publishes report through Next service-role path. No explicit workspace-level target verification observed in this handler. Backend also has `/api/report/{id}/publish`. |
 | `src/app/api/admin/reset-password/route.ts` | POST | Supabase SSR `auth.getUser()` | super_admin only (`:15-22`) | Yes (`:38-43`) | No | user id only | Forced auth admin password update. |
 | `src/app/api/admin/workspace-tokens/route.ts` | GET | Supabase SSR `auth.getUser()` | admin/super_admin (`:14-21`) | Yes (`:23-31`) | No | Lists all workspaces | Read-only but RLS-bypassing admin overview. |
-| `src/app/api/admin/workspace-tokens/[workspaceId]/route.ts` | PATCH | Supabase SSR `auth.getUser()` | super_admin only (`:23-30`) | Yes (`:49-52`) | No | workspaceId path param | Token mutation via RPC/update. |
+| `src/app/api/admin/workspace-tokens/[workspaceId]/route.ts` | PATCH | Supabase SSR `auth.getUser()` | super_admin only | Yes | No | workspaceId path param | Token mutation via RPC/update; rejects invalid JSON/body, non-integer `add_tokens`, and negative/non-integer `monthly_quota`. |
 | `src/app/api/companies/route.ts` | GET | None | None | No | No | N/A | Public KRX proxy using server-side API key. |
 | `src/app/api/health/route.ts` | GET | None | None | No | No | N/A | Public health endpoint. |
 | `src/app/api/monitoring/ai-analysis/estimate/route.ts` | POST | Requires incoming `Authorization` header (`:7-11`) | Delegated to backend | No | Yes (`NEXT_PUBLIC_API_URL`) | Delegated to backend | Local route only checks header presence, then forwards bearer token to backend `/api/monitoring/ai-analysis/estimate`. |
@@ -28,6 +28,7 @@
 - Evidence: `search-trend` route validates workspace access with anon/RLS first, then uses service-role for cache table access.
 - Evidence: static import search was used for API-module consumer mapping; dynamic imports/runtime-only consumers remain possible.
 - Evidence: dead report-create UI path was removed: `CreateReportButton`, `useCreateReport`, and stale frontend `createReport(workspaceId)` have no remaining `src` references.
+- Evidence: high-risk service-role write routes now validate role/tier/date/token numeric body values before invoking service-role auth/RPC/update calls.
 - Inference: service-role routes are not uniformly unsafe, but this matrix should be kept current whenever adding new `src/app/api/**` handlers.
 
 ## 2. `src/lib/api` module inventory
@@ -67,7 +68,7 @@
 ## 4. Follow-up gaps
 
 - Need decide whether unused `platformApi.ts` is dead code, reserved for future UI, or indirectly referenced outside static imports.
-- Need route handler body validation matrix: schema/no schema, numeric bounds, enum checks.
+- Continue route handler body validation matrix for lower-risk/proxy routes: schema/no schema, numeric bounds, enum checks, and consistent error envelope.
 - Client route policy is confirmed: `user` is blocked from admin shell, while admin/super_admin client-page preview/support access must be preserved.
 - Need timeout/retry behavior review for all backend proxy fetches.
 
