@@ -1,7 +1,7 @@
 # sir-frontend Route/API/Hook Matrix — pass 2
 
 작성일: 2026-06-25
-상태: 2차 탐색 기반 + P0.2 PDF 개선 + 2026-06-30 create-user/body-validation/dead-code remediation 반영본.
+상태: 2차 탐색 기반 + P0.2 PDF 개선 + 2026-06-30 body-validation/proxy-timeout/dead-code remediation 반영본.
 
 ## 1. Next route handler authorization matrix
 
@@ -15,16 +15,16 @@
 | `src/app/api/admin/workspace-tokens/[workspaceId]/route.ts` | PATCH | Supabase SSR `auth.getUser()` | super_admin only | Yes | No | workspaceId path param | Token mutation via RPC/update; rejects invalid JSON/body, non-integer `add_tokens`, and negative/non-integer `monthly_quota`. |
 | `src/app/api/companies/route.ts` | GET | None | None | No | No | N/A | Public KRX proxy using server-side API key. |
 | `src/app/api/health/route.ts` | GET | None | None | No | No | N/A | Public health endpoint. |
-| `src/app/api/monitoring/ai-analysis/estimate/route.ts` | POST | Requires incoming `Authorization` header (`:7-11`) | Delegated to backend | No | Yes (`NEXT_PUBLIC_API_URL`) | Delegated to backend | Local route only checks header presence, then forwards bearer token to backend `/api/monitoring/ai-analysis/estimate`. |
-| `src/app/api/monitoring/ai-analysis/route.ts` | POST | Requires incoming `Authorization` header | Delegated to backend | No | Yes | Delegated to backend | Local route only checks header presence. AI analysis generation, token charge, and workspace validation happen in backend. |
-| `src/app/api/monitoring/ai-analysis/latest/route.ts` | GET | Requires incoming `Authorization` header (`:7-11`) | Delegated to backend | No | Yes | `workspace_id` required locally; membership delegated to backend | Proxy with `cache: no-store`. |
+| `src/app/api/monitoring/ai-analysis/estimate/route.ts` | POST | Requires incoming `Authorization` header | Delegated to backend | No | Yes (`NEXT_PUBLIC_API_URL`) | Delegated to backend | Uses shared proxy helper with 30s timeout and normalized 502/504 errors; forwards bearer token to backend estimate endpoint. |
+| `src/app/api/monitoring/ai-analysis/route.ts` | POST | Requires incoming `Authorization` header | Delegated to backend | No | Yes | Delegated to backend | Uses shared proxy helper with 30s timeout and normalized 502/504 errors. AI analysis generation, token charge, and workspace validation happen in backend. |
+| `src/app/api/monitoring/ai-analysis/latest/route.ts` | GET | Requires incoming `Authorization` header | Delegated to backend | No | Yes | `workspace_id` required locally; membership delegated to backend | Uses shared proxy helper with 30s timeout, normalized 502/504 errors, and `cache: no-store`. |
 | `src/app/api/monitoring/search-trend/route.ts` | POST | Supabase SSR `auth.getUser()` (`:48-55`) | No role check | Yes for cache (`:90-94`) | No | RLS-backed `workspaces` select before service-role cache (`:71-82`) | Calls Naver DataLab directly; degrades to stale cache. No explicit role gate. |
 | `src/app/auth/callback/route.ts` | GET | Supabase auth callback/token hash | N/A | No | No | N/A | Exchanges code/OTP then redirects. |
 
 ### Observations
 
 - Evidence: admin route handlers consistently check `auth.getUser()` and `user_profiles.role` before service-role client creation in sampled files; `create-user` and reset-password/workspace-token mutation are super_admin-only.
-- Evidence: monitoring AI proxy routes check only `Authorization` header presence locally, then rely on backend `require_user` + backend workspace checks.
+- Evidence: monitoring AI proxy routes check only `Authorization` header presence locally, then rely on backend `require_user` + backend workspace checks; shared helper now bounds backend fetches with timeout and normalized failure responses.
 - Evidence: `search-trend` route validates workspace access with anon/RLS first, then uses service-role for cache table access.
 - Evidence: static import search was used for API-module consumer mapping; dynamic imports/runtime-only consumers remain possible.
 - Evidence: dead report-create UI path was removed: `CreateReportButton`, `useCreateReport`, and stale frontend `createReport(workspaceId)` have no remaining `src` references.
@@ -70,7 +70,7 @@
 - Need decide whether unused `platformApi.ts` is dead code, reserved for future UI, or indirectly referenced outside static imports.
 - Continue route handler body validation matrix for lower-risk/proxy routes: schema/no schema, numeric bounds, enum checks, and consistent error envelope.
 - Client route policy is confirmed: `user` is blocked from admin shell, while admin/super_admin client-page preview/support access must be preserved.
-- Need timeout/retry behavior review for all backend proxy fetches.
+- Continue timeout/retry behavior review for remaining backend/external proxy fetches; monitoring AI proxy family now has a common timeout/error helper.
 
 ## 5. Cross-repo PDF/backend handoff — pass 5
 

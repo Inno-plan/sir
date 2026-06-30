@@ -1,7 +1,7 @@
 # sir-frontend Findings — pass 3
 
 작성일: 2026-06-25
-최종 업데이트: 2026-06-30 — create-user super_admin 제한, service-role body validation 보강, dead report-create UI path 제거 반영.
+최종 업데이트: 2026-06-30 — create-user super_admin 제한, service-role body validation 보강, monitoring AI proxy timeout/error normalization 반영.
 표기: Evidence = 코드/설정 직접 근거, Inference = 근거 기반 추론, Unknown = 추가 확인 필요.
 
 ## Ranked findings
@@ -12,7 +12,7 @@
 | 2 | Service role boundary | Next route handlers가 service-role로 RLS를 우회하는 admin/cache 작업을 수행한다. `create-user`는 super_admin 전용으로 좁혔고, 고위험 service-role body validation 일부를 보강했다. 나머지 route별 감사 로그/검증 일관성은 별도 매트릭스 필요. | Medium | High | `src/app/api/admin/create-user/route.ts`, `src/app/api/admin/reset-password/route.ts`, `src/app/api/admin/workspace-tokens/[workspaceId]/route.ts`, `src/app/api/monitoring/search-trend/route.ts` |
 | 3 | Client route policy | `user`는 admin shell 진입이 차단되고, admin/super_admin은 고객 화면 preview/지원 목적으로 client route 접근이 허용되는 정책으로 확인됐다. | Policy confirmed / Low | High | `src/lib/supabase/middleware.ts:63-94`, `src/app/(app)/layout.tsx:8-16`, `src/app/(client)/layout.tsx:6-9`; user decision 2026-06-29 |
 | 4 | Environment secret handling | `.env.local`에 실제 secret이 로컬 평문으로 존재한다. git에는 ignore되지만 로컬/협업/캡처 유출 위험은 남는다. | Low/Process | High | `.env.local` key names, `.gitignore:16` ignores `*.local`, `git ls-files` shows not tracked |
-| 5 | Error/network resilience | backend proxy route 일부는 기본 fetch 위주이고, timeout/circuit-breaker 공통 유틸은 아직 확인되지 않았다. | Low/Medium | Medium | `src/app/api/monitoring/ai-analysis/*.ts` scan; detailed utility search pending |
+| 5 | Error/network resilience | monitoring AI backend proxy route는 공통 helper로 timeout과 normalized 502/504 error shape를 갖는다. 남은 표면은 다른 외부/backend proxy route의 timeout/retry 일관성이다. | Resolved for monitoring AI / Low remaining | High | `src/app/api/monitoring/ai-analysis/_proxy.ts`; `src/app/api/monitoring/ai-analysis/**/route.ts` |
 | 6 | Type drift | live DB에서 `risk_notice_reads` RLS 적용은 확인됐지만 generated Supabase 타입에는 아직 없어 raw PostgREST fetch 경계가 남아 있다. | Low/Medium | High | `rg risk_notice_reads src/types/database.types.ts` no match; `src/lib/api/reportApi.ts:887-918`; user-provided `pg_policies` result 2026-06-29 |
 | 7 | Test surface | 공식 `test`/`typecheck`/`e2e` script와 test runner config가 없고, repo-local `test*.mjs`는 live/operational script 성격이다. | Medium | High | `package.json:6-11`; `find` test/config scan; `scripts/test-*.mjs` inventory |
 | 8 | Lint/config | Phase 1A에서 `scripts/**/*.mjs` Node globals override를 추가해 repo-level `npm run lint`가 통과한다. 기존 app-source warnings 13건은 남아 있다. | Resolved/Low | High | `eslint.config.js:13-19`; `npm run lint` |
@@ -59,6 +59,13 @@ Inference: the active scheduled/manual report creation path remains the backend 
 - User decision 2026-06-29: admin/super_admin must be able to access all files/screens, including client report/monitoring/crisis surfaces.
 
 Inference: Current behavior is policy-aligned. No middleware/layout redirect change is needed; only TODO/comment documentation may be cleaned later.
+
+### F5. Monitoring AI proxy resilience — resolved for current proxy family
+
+- Evidence: `src/app/api/monitoring/ai-analysis/_proxy.ts` centralizes Authorization checks, backend URL configuration errors, backend response forwarding, a 30s `AbortSignal.timeout`, and normalized `502`/`504` JSON error responses.
+- Evidence: `src/app/api/monitoring/ai-analysis/route.ts`, `estimate/route.ts`, and `latest/route.ts` now use the shared helper instead of duplicating raw `fetch`/catch blocks.
+
+Inference: monitoring AI proxy routes now fail boundedly and consistently when the backend is down or slow. Remaining lower-priority work is checking other proxy/external fetch routes for the same timeout/error envelope pattern.
 
 ### F6. Generated Supabase type drift
 
@@ -138,7 +145,7 @@ Inference: full-stack PDF coverage remains manual for now because it depends on 
 ## Improvement backlog candidates
 
 1. Continue route-handler body validation matrix for remaining `src/app/api/**/route.ts` (schema/no schema, numeric bounds, enum checks, error shape); high-risk create-user/workspace-token mutation bodies now have explicit guards.
-2. Add common backend proxy helper with timeout and normalized error shape for monitoring AI proxy routes.
+2. Review remaining external/backend proxy routes for timeout and normalized error shape; monitoring AI proxy routes now use a common helper.
 3. Regenerate Supabase DB types now that `risk_notice_reads` is confirmed applied, then replace/retire raw PostgREST type escape if practical.
 4. Add explicit `typecheck` and CI-safe test scripts; keep live/operational smoke scripts behind env guards.
 5. Triage remaining dev-only `npm audit` findings (`@babel/core`, `brace-expansion`, `flatted`, `js-yaml`, `picomatch`, dev `postcss`) separately from production audit closure.
