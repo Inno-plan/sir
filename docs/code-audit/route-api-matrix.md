@@ -44,7 +44,7 @@
 | `opsApi.ts` | backend `/api/ops/queue`, `/api/sessions/{id}/retry` | ops queue and retry | `app/(app)/ops/OpsClient.tsx` |
 | `pipelineApi.ts` | backend `/api/pipeline/all` | pipeline trigger | `hooks/crawl/usePipelineMutation.ts` |
 | `platformApi.ts` | Supabase direct | workspace platform CRUD | No active consumers found by static import/search; classified as legacy/reserved for a possible future platform-selection UI |
-| `reportApi.ts` | Supabase direct + backend/Next mutation endpoints + PostgREST fetch for `risk_notice_reads` | report info, summary, channel/risk data, risk reports, publish/retry/regenerate, crisis read-state; stale frontend `createReport(workspaceId)` helper removed | `hooks/report/*`, `hooks/crawl/useStockQuery.ts`, `hooks/workspace/useWorkspaceMutation.ts`, report/risk/ops pages and chart components |
+| `reportApi.ts` | Supabase direct + backend/Next mutation endpoints | report info, summary, channel/risk data, risk reports, publish/retry/regenerate, typed Supabase crisis read-state; stale frontend `createReport(workspaceId)` helper removed | `hooks/report/*`, `hooks/crawl/useStockQuery.ts`, `hooks/workspace/useWorkspaceMutation.ts`, report/risk/ops pages and chart components |
 | `sessionApi.ts` | Supabase direct | sessions by workspace/detail/date | `hooks/crawl/useSessionQuery.ts` |
 | `subscriptionApi.ts` | Supabase direct RPCs | subscription lifecycle mutations | `lib/subscription.ts`, `lib/api/userApi.ts`, `hooks/subscription/*`, workspace/user admin components |
 | `userApi.ts` | Supabase direct + Next admin route handlers | users, details, tokens, create/reset, role/workspace assignment | `hooks/user/*`, user admin components |

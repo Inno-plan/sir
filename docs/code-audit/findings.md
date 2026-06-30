@@ -1,7 +1,7 @@
 # sir-frontend Findings — pass 3
 
 작성일: 2026-06-25
-최종 업데이트: 2026-06-30 — create-user super_admin 제한, service-role body validation 보강, frontend external/proxy timeout normalization, typecheck script, platformApi legacy/reserved 판정, Supabase typegen 반영.
+최종 업데이트: 2026-07-01 — create-user super_admin 제한, service-role body validation 보강, frontend external/proxy timeout normalization, typecheck script, platformApi legacy/reserved 판정, Supabase typegen 및 risk_notice_reads typed client 전환 반영.
 표기: Evidence = 코드/설정 직접 근거, Inference = 근거 기반 추론, Unknown = 추가 확인 필요.
 
 ## Ranked findings
@@ -13,7 +13,7 @@
 | 3 | Client route policy | `user`는 admin shell 진입이 차단되고, admin/super_admin은 고객 화면 preview/지원 목적으로 client route 접근이 허용되는 정책으로 확인됐다. | Policy confirmed / Low | High | `src/lib/supabase/middleware.ts:63-94`, `src/app/(app)/layout.tsx:8-16`, `src/app/(client)/layout.tsx:6-9`; user decision 2026-06-29 |
 | 4 | Environment secret handling | `.env.local`에 실제 secret이 로컬 평문으로 존재한다. git에는 ignore되지만 로컬/협업/캡처 유출 위험은 남는다. | Low/Process | High | `.env.local` key names, `.gitignore:16` ignores `*.local`, `git ls-files` shows not tracked |
 | 5 | Error/network resilience | monitoring AI backend proxy, KRX company search, and Naver DataLab search-trend routes now use bounded fetches and normalized upstream failure responses. Remaining work is broader retry/circuit-breaker policy, not an unbounded-fetch gap in these route families. | Resolved major frontend routes / Low remaining | High | `src/app/api/monitoring/ai-analysis/_proxy.ts`; `src/app/api/monitoring/ai-analysis/**/route.ts`; `src/app/api/companies/route.ts`; `src/app/api/monitoring/search-trend/route.ts` |
-| 6 | Type drift | Supabase typegen으로 `risk_notice_reads` generated 타입은 반영됐다. 남은 일은 기존 raw PostgREST fetch를 typed Supabase client 호출로 교체할지 결정/적용하는 것이다. | Low | High | `src/types/database.types.ts` `risk_notice_reads`; `src/lib/api/reportApi.ts` raw fetch path; user-provided `pg_policies` result 2026-06-29 |
+| 6 | Type drift | `risk_notice_reads` generated 타입을 반영했고, crisis read-state 조회/저장을 raw PostgREST fetch에서 typed Supabase client select/upsert로 전환했다. | Resolved / Low remaining | High | `src/types/database.types.ts` `risk_notice_reads`; `src/lib/api/reportApi.ts` `getRiskNoticeRead` / `markRiskNoticeRead`; user-provided `pg_policies` result 2026-06-29 |
 | 7 | Test surface | `typecheck` script는 추가됐지만, 공식 `test`/`e2e` script와 test runner config는 아직 없다. repo-local `test*.mjs`는 live/operational script 성격이다. | Medium | High | `package.json`; `find` test/config scan; `scripts/test-*.mjs` inventory |
 | 8 | Lint/config | Phase 1A에서 `scripts/**/*.mjs` Node globals override를 추가해 repo-level `npm run lint`가 통과한다. 기존 app-source warnings 13건은 남아 있다. | Resolved/Low | High | `eslint.config.js:13-19`; `npm run lint` |
 | 9 | Dependency vulnerabilities | Phase 1A에서 production audit는 0건으로 정리됐다. Legacy `jspdf`/`jspdf-autotable` dead path를 제거했고, `next`/`lodash`/`ws`/Next nested `postcss`를 lockfile/override로 보정했다. Dev-only audit 취약점은 별도 후속이다. | Resolved for prod / Dev risk remains | High | `package.json`, `package-lock.json`; `src/components/pipeline/ReportResult.tsx`; deleted `src/utils/reportPdf.ts`; `npm audit --omit=dev --audit-level=moderate` |
@@ -70,15 +70,16 @@ Inference: Current behavior is policy-aligned. No middleware/layout redirect cha
 
 Inference: the main frontend external/backend route handlers no longer rely on unbounded fetches. Remaining lower-priority work is product-level retry/circuit-breaker policy or other long-tail fetch call sites outside these route families.
 
-### F6. Generated Supabase type drift — typegen completed
+### F6. Generated Supabase type drift — typed client path completed
 
-- Evidence: `src/types/database.types.ts` now includes the generated `risk_notice_reads` table type with `Row`, `Insert`, `Update`, and relationships to `user_profiles` / `workspaces`.
+- Evidence: `src/types/database.types.ts` includes the generated `risk_notice_reads` table type with `Row`, `Insert`, `Update`, and relationships to `user_profiles` / `workspaces`.
 - Evidence: the 2026-06-30 typegen also synced live schema drift for `app_settings`, `community_items.summary`, and additional RPC signatures.
-- Evidence: `src/lib/api/reportApi.ts` still accesses `risk_notice_reads` through raw PostgREST `fetch()` with authenticated headers.
-- Verification: `SUPABASE_CHECK_UPDATE=false supabase gen types typescript --project-id uggbeedbspbypvousmwi --schema public` completed successfully with Supabase CLI 2.90.0, then `npm run typecheck` passed.
+- Evidence: `src/lib/api/reportApi.ts` now uses typed Supabase `.from('risk_notice_reads').select(...).maybeSingle()` for read-state lookup and `.upsert(..., { onConflict: 'profile_id,workspace_id' })` for read-state saves.
+- Evidence: the existing guard that only `role='user'` can mutate crisis read-state is preserved before upsert; admin/super_admin preview visits still do not mark client read-state.
+- Verification: `SUPABASE_CHECK_UPDATE=false supabase gen types typescript --project-id uggbeedbspbypvousmwi --schema public` completed successfully with Supabase CLI 2.90.0 during typegen, then typed client conversion passed frontend typecheck/lint.
 - Live policy confirmation supplied by user on 2026-06-29: `risk_notice_reads_select_own_user`, `insert_own_user`, and `update_own_user` policies exist for authenticated `role='user'` workspace members only.
 
-Inference: the schema/type drift part is resolved. The remaining improvement is code cleanup: replace or retire the raw PostgREST escape now that typed Supabase access is available.
+Inference: the schema/type drift and raw PostgREST escape are resolved for the crisis read-state path. Remaining risk is ordinary manual UI verification of the NEW badge/read-state behavior in local dev or staging; no live mutation smoke was run during remediation.
 
 ### F7. Test surface gap
 
@@ -155,8 +156,8 @@ Inference: the files are safe-looking deletion candidates, but deletion is defer
 
 1. Continue route-handler body validation matrix for remaining `src/app/api/**/route.ts` (schema/no schema, numeric bounds, enum checks, error shape); high-risk create-user/workspace-token mutation bodies now have explicit guards.
 2. Review only long-tail external/backend fetches for retry/circuit-breaker policy; monitoring AI, KRX, and Naver DataLab route families now have timeout/error normalization.
-3. Replace/retire the `risk_notice_reads` raw PostgREST escape now that Supabase DB types have been regenerated.
-4. Add CI-safe `test`/`e2e` scripts when a runner exists; `typecheck` is now explicit and live/operational smoke scripts should remain behind env guards.
+3. Add CI-safe `test`/`e2e` scripts when a runner exists; `typecheck` is now explicit and live/operational smoke scripts should remain behind env guards.
+4. Manually verify the client crisis NEW badge/read-state flow in local dev or staging after auth/UI changes.
 5. Triage remaining dev-only `npm audit` findings (`@babel/core`, `brace-expansion`, `flatted`, `js-yaml`, `picomatch`, dev `postcss`) separately from production audit closure.
 6. Add high-value tests for route auth, report/PDF render, risk NEW read-state invalidation, and admin route handler role gates.
 7. Run the manual cross-repo PDF smoke runbook after PDF/auth changes or before release.

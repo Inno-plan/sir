@@ -826,85 +826,60 @@ export interface RiskNoticeRead {
   latestSeenRiskAt: string | null;
 }
 
-async function getAuthenticatedRestHeaders(): Promise<HeadersInit | null> {
+async function getAuthenticatedUserId(): Promise<string | null> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return null;
 
-  return {
-    apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    Authorization: `Bearer ${session.access_token}`,
-    'Content-Type': 'application/json',
-  };
-}
-
-function buildRestUrl(path: string, params?: URLSearchParams): string {
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const query = params?.toString();
-  return `${base}/rest/v1/${path}${query ? `?${query}` : ''}`;
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id ?? null;
 }
 
 export async function getRiskNoticeRead(workspaceId: string): Promise<RiskNoticeRead> {
-  const headers = await getAuthenticatedRestHeaders();
-  if (!headers) return { latestSeenRiskAt: null };
+  const userId = await getAuthenticatedUserId();
+  if (!userId) return { latestSeenRiskAt: null };
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { latestSeenRiskAt: null };
+  const { data, error } = await supabase
+    .from('risk_notice_reads')
+    .select('latest_seen_risk_at')
+    .eq('profile_id', userId)
+    .eq('workspace_id', workspaceId)
+    .maybeSingle();
 
-  const params = new URLSearchParams({
-    select: 'latest_seen_risk_at',
-    profile_id: `eq.${user.id}`,
-    workspace_id: `eq.${workspaceId}`,
-    limit: '1',
-  });
-
-  const res = await fetch(buildRestUrl('risk_notice_reads', params), {
-    method: 'GET',
-    headers,
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`리스크 알림 확인 상태 조회 실패 (${res.status}): ${detail.slice(0, 120)}`);
+  if (error) {
+    throw new Error(`리스크 알림 확인 상태 조회 실패: ${error.message}`);
   }
 
-  const rows = (await res.json()) as { latest_seen_risk_at: string | null }[];
-  return { latestSeenRiskAt: rows[0]?.latest_seen_risk_at ?? null };
+  return { latestSeenRiskAt: data?.latest_seen_risk_at ?? null };
 }
 
 export async function markRiskNoticeRead(
   workspaceId: string,
   latestRiskAt: string
 ): Promise<void> {
-  const headers = await getAuthenticatedRestHeaders();
-  if (!headers) return;
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
+  const userId = await getAuthenticatedUserId();
+  if (!userId) return;
 
   const { data: profile } = await supabase
     .from('user_profiles')
     .select('role')
-    .eq('id', user.id)
+    .eq('id', userId)
     .single();
   if (profile?.role !== 'user') return;
 
-  const params = new URLSearchParams({ on_conflict: 'profile_id,workspace_id' });
-  const res = await fetch(buildRestUrl('risk_notice_reads', params), {
-    method: 'POST',
-    headers: {
-      ...headers,
-      Prefer: 'resolution=merge-duplicates',
-    },
-    body: JSON.stringify({
-      profile_id: user.id,
-      workspace_id: workspaceId,
-      latest_seen_risk_at: latestRiskAt,
-      seen_at: new Date().toISOString(),
-    }),
-  });
+  const { error } = await supabase
+    .from('risk_notice_reads')
+    .upsert(
+      {
+        profile_id: userId,
+        workspace_id: workspaceId,
+        latest_seen_risk_at: latestRiskAt,
+        seen_at: new Date().toISOString(),
+      },
+      { onConflict: 'profile_id,workspace_id' }
+    );
 
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`리스크 알림 확인 상태 저장 실패 (${res.status}): ${detail.slice(0, 120)}`);
+  if (error) {
+    throw new Error(`리스크 알림 확인 상태 저장 실패: ${error.message}`);
   }
 }
 
