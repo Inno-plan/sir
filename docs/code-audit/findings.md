@@ -1,7 +1,7 @@
 # sir-frontend Findings — pass 3
 
 작성일: 2026-06-25
-최종 업데이트: 2026-06-30 — create-user super_admin 제한, service-role body validation 보강, frontend external/proxy timeout normalization, typecheck script 반영.
+최종 업데이트: 2026-06-30 — create-user super_admin 제한, service-role body validation 보강, frontend external/proxy timeout normalization, typecheck script, platformApi legacy/reserved 판정 반영.
 표기: Evidence = 코드/설정 직접 근거, Inference = 근거 기반 추론, Unknown = 추가 확인 필요.
 
 ## Ranked findings
@@ -21,6 +21,7 @@
 | 11 | Cross-repo PDF preflight | Phase 2에서 frontend download/render entry와 backend PDF API 모두 report↔workspace 조합을 차단한다. 남은 리스크는 user session을 backend→Playwright→frontend로 위임하는 구조와 수동 smoke coverage다. | Resolved preflight / Low remaining | High | `src/components/client/sidebar/PdfDownloadButton.tsx:99-118`, `:161-167`; `src/app/report-pdf/[workspaceId]/[reportId]/page.tsx:129-137`; backend `sir-backend/main.py` `_assert_report_pdf_access`/`report_pdf`, `sir-backend/services/pdf_service.py` |
 | 12 | Client/admin policy ambiguity | Resolved by product policy: admin/super_admin must be able to access all client/report files/screens. No redirect change is needed; TODO is documentation cleanup only. | Resolved / Policy | High | `src/lib/supabase/middleware.ts:63-82`; `src/app/(app)/layout.tsx:10-16`; `src/app/(client)/layout.tsx:4-9`; user decision 2026-06-29 |
 | 13 | Cross-repo smoke gap | Backend has hermetic PDF preflight/service tests; frontend/full-stack PDF render, token expiry, and log-redaction paths are covered by a manual smoke runbook rather than automated e2e for now. | Medium / Manual control | High | `package.json:6-11`; backend `tests/test_pdf_preflight.py`, `tests/test_pdf_service.py`; `docs/code-audit/pdf-smoke-runbook.md` |
+| 14 | Legacy platform API | `platformApi.ts` / `types/platform.ts` have no active consumers and are classified as legacy/reserved rather than deleted. Runtime impact is negligible because active code does not import them. | Low / Reserved | High | `src/lib/api/platformApi.ts`; `src/types/platform.ts`; static search; active platform constants in `workspaceApi.ts`, `utils/workspace.ts`, `monitoringApi.ts`, `reportApi.ts` |
 
 ## Evidence details
 
@@ -144,6 +145,13 @@ Inference: admin/super_admin access to client routes is intended support/preview
 
 Inference: full-stack PDF coverage remains manual for now because it depends on live auth/session/browser/backend coordination. This is acceptable as an audit control if run before release or after PDF/auth changes.
 
+### F14. Legacy platform API classified as reserved
+
+- Evidence: static search finds no active consumers for `src/lib/api/platformApi.ts`, its exports (`getPlatforms`, `getPlatformsByWorkspace`, `createPlatforms`, `deletePlatform`), or `src/types/platform.ts` outside their own import pair.
+- Evidence: active workspace/report surfaces use hardcoded platform constants and mappings instead: `ACTIVE_PLATFORMS` in `src/lib/api/workspaceApi.ts`, `ALL_PLATFORMS`/`WEEKLY_PLATFORMS` in `src/utils/workspace.ts`, and channel mappings in `src/lib/api/monitoringApi.ts` / `src/lib/api/reportApi.ts`.
+
+Inference: the files are safe-looking deletion candidates, but deletion is deferred because they may document or support a future platform-selection UI. Keeping them has negligible runtime cost because active code does not import them. If this changes, remove `platformApi.ts` and `types/platform.ts` together in a deliberate deletion pass or replace them with a real UI-backed platform source.
+
 ## Improvement backlog candidates
 
 1. Continue route-handler body validation matrix for remaining `src/app/api/**/route.ts` (schema/no schema, numeric bounds, enum checks, error shape); high-risk create-user/workspace-token mutation bodies now have explicit guards.
@@ -155,3 +163,4 @@ Inference: full-stack PDF coverage remains manual for now because it depends on 
 7. Run the manual cross-repo PDF smoke runbook after PDF/auth changes or before release.
 8. Preserve current policy that admin/super_admin can access client routes for preview/support.
 9. Keep removed dead report-create UI path out unless a future UI reintroduces explicit `type` and backend-aligned validation.
+10. Keep `platformApi.ts` / `types/platform.ts` as legacy/reserved unless a future platform-selection UI needs them or a deliberate deletion pass removes both together.

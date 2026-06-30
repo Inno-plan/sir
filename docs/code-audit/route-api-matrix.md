@@ -29,6 +29,7 @@
 - Evidence: static import search was used for API-module consumer mapping; dynamic imports/runtime-only consumers remain possible.
 - Evidence: dead report-create UI path was removed: `CreateReportButton`, `useCreateReport`, and stale frontend `createReport(workspaceId)` have no remaining `src` references.
 - Evidence: high-risk service-role write routes now validate role/tier/date/token numeric body values before invoking service-role auth/RPC/update calls.
+- Evidence: `platformApi.ts` and `types/platform.ts` have no active `src` consumers outside their own import pair; active workspace/report flows use hardcoded platform constants/mappings in `workspaceApi.ts`, `utils/workspace.ts`, `monitoringApi.ts`, and `reportApi.ts`.
 - Inference: service-role routes are not uniformly unsafe, but this matrix should be kept current whenever adding new `src/app/api/**` handlers.
 
 ## 2. `src/lib/api` module inventory
@@ -42,7 +43,7 @@
 | `newsApi.ts` | Supabase direct | cluster item lookup | `hooks/crawl/useCrawlQuery.ts` |
 | `opsApi.ts` | backend `/api/ops/queue`, `/api/sessions/{id}/retry` | ops queue and retry | `app/(app)/ops/OpsClient.tsx` |
 | `pipelineApi.ts` | backend `/api/pipeline/all` | pipeline trigger | `hooks/crawl/usePipelineMutation.ts` |
-| `platformApi.ts` | Supabase direct | workspace platform CRUD | No static consumers found by import search in this pass |
+| `platformApi.ts` | Supabase direct | workspace platform CRUD | No active consumers found by static import/search; classified as legacy/reserved for a possible future platform-selection UI |
 | `reportApi.ts` | Supabase direct + backend/Next mutation endpoints + PostgREST fetch for `risk_notice_reads` | report info, summary, channel/risk data, risk reports, publish/retry/regenerate, crisis read-state; stale frontend `createReport(workspaceId)` helper removed | `hooks/report/*`, `hooks/crawl/useStockQuery.ts`, `hooks/workspace/useWorkspaceMutation.ts`, report/risk/ops pages and chart components |
 | `sessionApi.ts` | Supabase direct | sessions by workspace/detail/date | `hooks/crawl/useSessionQuery.ts` |
 | `subscriptionApi.ts` | Supabase direct RPCs | subscription lifecycle mutations | `lib/subscription.ts`, `lib/api/userApi.ts`, `hooks/subscription/*`, workspace/user admin components |
@@ -67,7 +68,7 @@
 
 ## 4. Follow-up gaps
 
-- Need decide whether unused `platformApi.ts` is dead code, reserved for future UI, or indirectly referenced outside static imports.
+- `platformApi.ts` / `types/platform.ts` are classified as legacy/reserved, not removed: runtime impact is negligible because they are not imported by active code; revisit only if rebuilding platform-selection UI or doing a deliberate deletion pass that removes both together.
 - Continue route handler body validation matrix for lower-risk/proxy routes: schema/no schema, numeric bounds, enum checks, and consistent error envelope.
 - Client route policy is confirmed: `user` is blocked from admin shell, while admin/super_admin client-page preview/support access must be preserved.
 - Continue only long-tail timeout/retry behavior review; monitoring AI, KRX company search, and Naver DataLab search-trend route families now have bounded fetch/error normalization.
