@@ -201,34 +201,6 @@ export async function getReportInfo(workspaceId: string, reportId: string) {
   return data;
 }
 
-// ── 리포트 생성 (관리자 전용) ──
-
-export interface CreatedReport {
-  period_start: string;
-  period_end: string;
-}
-
-export async function createReport(workspaceId: string): Promise<CreatedReport> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) throw new Error('로그인이 필요합니다.');
-
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/report`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify({ workspace_id: workspaceId }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail ?? '보고서 생성 실패');
-  }
-  return res.json();
-}
-
 // ── 리포트 발행 (관리자 전용) ──
 
 export async function publishReport(reportId: string): Promise<void> {

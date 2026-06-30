@@ -7,7 +7,7 @@ import { checkPassword, PASSWORD_POLICY_MESSAGE } from '@/lib/auth/passwordPolic
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
-  // 호출자 권한 검증 — super_admin/admin 만 허용 (audit C8)
+  // 호출자 권한 검증 — 계정 생성은 super_admin 만 허용
   const supabaseUser = await createServerClient();
   const { data: { user } } = await supabaseUser.auth.getUser();
   if (!user) {
@@ -18,8 +18,8 @@ export async function POST(request: NextRequest) {
     .select('role')
     .eq('id', user.id)
     .single();
-  if (profile?.role !== 'super_admin' && profile?.role !== 'admin') {
-    return NextResponse.json({ detail: '관리자 권한 필요' }, { status: 403 });
+  if (profile?.role !== 'super_admin') {
+    return NextResponse.json({ detail: '최고 관리자 권한 필요' }, { status: 403 });
   }
 
   const supabaseAdmin = createClient(

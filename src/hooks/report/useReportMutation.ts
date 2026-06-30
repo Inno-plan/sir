@@ -7,7 +7,6 @@ import {
   deleteRiskReport,
   submitRiskReport,
   publishReport,
-  createReport,
   updateRiskReport,
   markRiskNoticeRead,
 } from '@/lib/api/reportApi';
@@ -19,7 +18,6 @@ import type {
   StrategyGroup,
   RiskItem,
   SubmitRiskReportInput,
-  CreatedReport,
 } from '@/lib/api/reportApi';
 
 // ── 주간 총평 수정 ──
@@ -46,19 +44,6 @@ export function useUpdateSummary(workspaceId: string, reportId: string) {
     },
     onSettled: () => {
       queryClient.refetchQueries({ queryKey });
-    },
-  });
-}
-
-// ── 보고서 생성 (관리자) ──
-
-export function useCreateReport(workspaceId: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation<CreatedReport, Error, void>({
-    mutationFn: () => createReport(workspaceId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.reports(workspaceId) });
     },
   });
 }

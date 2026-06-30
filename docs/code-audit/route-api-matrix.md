@@ -1,14 +1,14 @@
 # sir-frontend Route/API/Hook Matrix — pass 2
 
 작성일: 2026-06-25
-상태: 2차 탐색 기반 + P0.2 PDF 개선 + 2026-06-29 policy/runbook 반영본.
+상태: 2차 탐색 기반 + P0.2 PDF 개선 + 2026-06-30 create-user/dead-code remediation 반영본.
 
 ## 1. Next route handler authorization matrix
 
 | Route file | Method | Auth source | Role check | Service-role use | Backend proxy | Workspace validation | Notes |
 |---|---:|---|---|---|---|---|---|
 | `src/app/api/admin/clear-critical/route.ts` | POST | Supabase SSR `auth.getUser()` | `user_profiles.role` admin/super_admin | Yes | No | No workspace validation; platform/id only | Admin critical clear mutation. Target row validation is platform/id based. |
-| `src/app/api/admin/create-user/route.ts` | POST | Supabase SSR `auth.getUser()` | admin/super_admin (`:16-23`) | Yes (`:25-28`) | No | Creates workspace via RPC for user role | Requires email/password/company; user role requires ticker/tier/subscription dates. |
+| `src/app/api/admin/create-user/route.ts` | POST | Supabase SSR `auth.getUser()` | super_admin only (`:16-23`) | Yes (`:25-28`) | No | Creates workspace via RPC for user role | Admin callers are now rejected; requires email/password/company; user role requires ticker/tier/subscription dates. |
 | `src/app/api/admin/publish-report/route.ts` | POST | Supabase SSR `auth.getUser()` | admin/super_admin | Yes | No | report id/status only | Publishes report through Next service-role path. No explicit workspace-level target verification observed in this handler. Backend also has `/api/report/{id}/publish`. |
 | `src/app/api/admin/reset-password/route.ts` | POST | Supabase SSR `auth.getUser()` | super_admin only (`:15-22`) | Yes (`:38-43`) | No | user id only | Forced auth admin password update. |
 | `src/app/api/admin/workspace-tokens/route.ts` | GET | Supabase SSR `auth.getUser()` | admin/super_admin (`:14-21`) | Yes (`:23-31`) | No | Lists all workspaces | Read-only but RLS-bypassing admin overview. |
@@ -23,10 +23,11 @@
 
 ### Observations
 
-- Evidence: admin route handlers consistently check `auth.getUser()` and `user_profiles.role` before service-role client creation in sampled files.
+- Evidence: admin route handlers consistently check `auth.getUser()` and `user_profiles.role` before service-role client creation in sampled files; `create-user` and reset-password/workspace-token mutation are super_admin-only.
 - Evidence: monitoring AI proxy routes check only `Authorization` header presence locally, then rely on backend `require_user` + backend workspace checks.
 - Evidence: `search-trend` route validates workspace access with anon/RLS first, then uses service-role for cache table access.
 - Evidence: static import search was used for API-module consumer mapping; dynamic imports/runtime-only consumers remain possible.
+- Evidence: dead report-create UI path was removed: `CreateReportButton`, `useCreateReport`, and stale frontend `createReport(workspaceId)` have no remaining `src` references.
 - Inference: service-role routes are not uniformly unsafe, but this matrix should be kept current whenever adding new `src/app/api/**` handlers.
 
 ## 2. `src/lib/api` module inventory
@@ -41,7 +42,7 @@
 | `opsApi.ts` | backend `/api/ops/queue`, `/api/sessions/{id}/retry` | ops queue and retry | `app/(app)/ops/OpsClient.tsx` |
 | `pipelineApi.ts` | backend `/api/pipeline/all` | pipeline trigger | `hooks/crawl/usePipelineMutation.ts` |
 | `platformApi.ts` | Supabase direct | workspace platform CRUD | No static consumers found by import search in this pass |
-| `reportApi.ts` | Supabase direct + backend/Next mutation endpoints + PostgREST fetch for `risk_notice_reads` | report info, summary, channel/risk data, risk reports, publish/retry/regenerate, crisis read-state | `hooks/report/*`, `hooks/crawl/useStockQuery.ts`, `hooks/workspace/useWorkspaceMutation.ts`, report/risk/ops pages and chart components |
+| `reportApi.ts` | Supabase direct + backend/Next mutation endpoints + PostgREST fetch for `risk_notice_reads` | report info, summary, channel/risk data, risk reports, publish/retry/regenerate, crisis read-state; stale frontend `createReport(workspaceId)` helper removed | `hooks/report/*`, `hooks/crawl/useStockQuery.ts`, `hooks/workspace/useWorkspaceMutation.ts`, report/risk/ops pages and chart components |
 | `sessionApi.ts` | Supabase direct | sessions by workspace/detail/date | `hooks/crawl/useSessionQuery.ts` |
 | `subscriptionApi.ts` | Supabase direct RPCs | subscription lifecycle mutations | `lib/subscription.ts`, `lib/api/userApi.ts`, `hooks/subscription/*`, workspace/user admin components |
 | `userApi.ts` | Supabase direct + Next admin route handlers | users, details, tokens, create/reset, role/workspace assignment | `hooks/user/*`, user admin components |
@@ -53,7 +54,7 @@
 | Hook group | API module(s) | Query/mutation notes |
 |---|---|---|
 | `hooks/report/useReportQuery.ts` | `reportApi`, `workspaceApi`, `monitoringApi` | Large report data surface; report key prefixes intentionally support broad invalidation for risk reports and summaries. |
-| `hooks/report/useReportMutation.ts` | `reportApi` | Uses optimistic update for summary/strategies; invalidates report/workspace/risk notice/risk report caches after mutations. |
+| `hooks/report/useReportMutation.ts` | `reportApi` | Uses optimistic update for summary/strategies; invalidates report/workspace/risk notice/risk report caches after mutations. Legacy `useCreateReport` hook removed with its unused button. |
 | `hooks/monitoring/useMonitoringQuery.ts` | `monitoringApi` | Daily/stock/risk/channel/AI/history/token/day item queries. |
 | `hooks/monitoring/useMonitoringMutation.ts` | `monitoringApi` | On AI analysis success, sets latest analysis cache and invalidates estimate/token/history. |
 | `hooks/workspace/useWorkspaceQuery.ts` | `workspaceApi`, `subscriptionApi`, Supabase realtime | Uses Realtime channel for sessions/reports/session_strategies changes to invalidate progress/reports. |

@@ -1,7 +1,7 @@
 # sir-frontend Findings — pass 3
 
 작성일: 2026-06-25
-최종 업데이트: 2026-06-29 — Phase 2 report/workspace hardening, admin client-access policy, live RLS confirmation 반영.
+최종 업데이트: 2026-06-30 — create-user super_admin 제한, dead report-create UI path 제거, Phase 2 report/workspace hardening 반영.
 표기: Evidence = 코드/설정 직접 근거, Inference = 근거 기반 추론, Unknown = 추가 확인 필요.
 
 ## Ranked findings
@@ -9,7 +9,7 @@
 | Rank | Area | Finding | Severity | Confidence | Basis |
 |---:|---|---|---|---|---|
 | 1 | PDF auth | `/report-pdf`가 middleware를 우회하지만 P0.2에서 access/refresh token을 URL query 대신 Playwright injected session으로 전달한다. URL history/log/referrer 노출면은 줄었고, 남은 리스크는 user token을 backend→browser context로 위임하는 구조 자체다. | Low/Medium | High | `src/middleware.ts:13-15`, `src/lib/supabase/middleware.ts:8-13`, `src/app/report-pdf/[workspaceId]/[reportId]/page.tsx:15-62`, backend `sir-backend/services/pdf_service.py:18-84` |
-| 2 | Service role boundary | Next route handlers가 service-role로 RLS를 우회하는 admin/cache 작업을 수행한다. 대부분 caller role check가 있으나, 각 route별 입력 검증/감사 일관성은 별도 매트릭스 필요. | Medium | High | `src/app/api/admin/create-user/route.ts:9-28`, `src/app/api/admin/reset-password/route.ts:8-43`, `src/app/api/admin/workspace-tokens/[workspaceId]/route.ts:13-52`, `src/app/api/monitoring/search-trend/route.ts:90-94` |
+| 2 | Service role boundary | Next route handlers가 service-role로 RLS를 우회하는 admin/cache 작업을 수행한다. `create-user`는 super_admin 전용으로 좁혔고, 나머지 route별 입력 검증/감사 일관성은 별도 매트릭스 필요. | Medium | High | `src/app/api/admin/create-user/route.ts:9-28`, `src/app/api/admin/reset-password/route.ts:8-43`, `src/app/api/admin/workspace-tokens/[workspaceId]/route.ts:13-52`, `src/app/api/monitoring/search-trend/route.ts:90-94` |
 | 3 | Client route policy | `user`는 admin shell 진입이 차단되고, admin/super_admin은 고객 화면 preview/지원 목적으로 client route 접근이 허용되는 정책으로 확인됐다. | Policy confirmed / Low | High | `src/lib/supabase/middleware.ts:63-94`, `src/app/(app)/layout.tsx:8-16`, `src/app/(client)/layout.tsx:6-9`; user decision 2026-06-29 |
 | 4 | Environment secret handling | `.env.local`에 실제 secret이 로컬 평문으로 존재한다. git에는 ignore되지만 로컬/협업/캡처 유출 위험은 남는다. | Low/Process | High | `.env.local` key names, `.gitignore:16` ignores `*.local`, `git ls-files` shows not tracked |
 | 5 | Error/network resilience | backend proxy route 일부는 기본 fetch 위주이고, timeout/circuit-breaker 공통 유틸은 아직 확인되지 않았다. | Low/Medium | Medium | `src/app/api/monitoring/ai-analysis/*.ts` scan; detailed utility search pending |
@@ -37,12 +37,20 @@ Verification note:
 
 ### F2. Service-role route boundary
 
-- Evidence: `src/app/api/admin/create-user/route.ts:9-23` validates caller role before service-role use at `:25-28`.
+- Evidence: `src/app/api/admin/create-user/route.ts:9-23` now requires caller role `super_admin` before service-role use at `:25-28`; `admin` callers receive `403`.
 - Evidence: `src/app/api/admin/reset-password/route.ts:8-22` restricts reset to `super_admin`, then service-role admin update at `:38-43`.
 - Evidence: `src/app/api/admin/workspace-tokens/[workspaceId]/route.ts:18-30` restricts PATCH to `super_admin`, then service-role at `:49-52`.
 - Evidence: `src/app/api/monitoring/search-trend/route.ts:71-82` checks workspace access via RLS before service-role cache SELECT/UPSERT at `:90-94` and `:191-205`.
 
 Inference: service-role usage is not automatically unsafe because routes perform role/membership checks first. The improvement target is consistency: route-by-route matrix of caller role, workspace validation, body validation, side effect, and audit log presence.
+
+### F2b. Dead report-create frontend path removed
+
+- Evidence: legacy `src/components/workspace/detail/CreateReportButton.tsx` was deleted.
+- Evidence: `src/hooks/report/useReportMutation.ts` no longer exports `useCreateReport`, and `src/lib/api/reportApi.ts` no longer exports the stale `createReport(workspaceId)` frontend API helper.
+- Evidence: static search for `CreateReportButton`, `useCreateReport`, `createReport(`, and `CreatedReport` in `src` returns no active references after deletion.
+
+Inference: the active scheduled/manual report creation path remains the backend `/api/report` / `/api/cron/report` flow with explicit `type`; the removed frontend path only sent `workspace_id` and was unreachable dead code.
 
 ### F3. Client route role policy confirmed
 
@@ -137,3 +145,4 @@ Inference: full-stack PDF coverage remains manual for now because it depends on 
 6. Add high-value tests for route auth, report/PDF render, risk NEW read-state invalidation, and admin route handler role gates.
 7. Run the manual cross-repo PDF smoke runbook after PDF/auth changes or before release.
 8. Preserve current policy that admin/super_admin can access client routes for preview/support.
+9. Keep removed dead report-create UI path out unless a future UI reintroduces explicit `type` and backend-aligned validation.
