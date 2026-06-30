@@ -88,6 +88,24 @@ export type Database = {
           },
         ]
       }
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       community_items: {
         Row: {
           content: string | null
@@ -105,6 +123,7 @@ export type Database = {
           published_at: string | null
           sentiment: string | null
           session_id: string | null
+          summary: string | null
           title: string
           views: number | null
           workspace_id: string
@@ -125,6 +144,7 @@ export type Database = {
           published_at?: string | null
           sentiment?: string | null
           session_id?: string | null
+          summary?: string | null
           title: string
           views?: number | null
           workspace_id: string
@@ -145,6 +165,7 @@ export type Database = {
           published_at?: string | null
           sentiment?: string | null
           session_id?: string | null
+          summary?: string | null
           title?: string
           views?: number | null
           workspace_id?: string
@@ -701,6 +722,42 @@ export type Database = {
           },
           {
             foreignKeyName: "reports_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      risk_notice_reads: {
+        Row: {
+          latest_seen_risk_at: string
+          profile_id: string
+          seen_at: string
+          workspace_id: string
+        }
+        Insert: {
+          latest_seen_risk_at: string
+          profile_id: string
+          seen_at?: string
+          workspace_id: string
+        }
+        Update: {
+          latest_seen_risk_at?: string
+          profile_id?: string
+          seen_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "risk_notice_reads_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "risk_notice_reads_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -1378,6 +1435,7 @@ export type Database = {
         Returns: string
       }
       charge_monthly_ai_tokens: { Args: never; Returns: number }
+      cleanup_analyzed_content: { Args: never; Returns: undefined }
       cleanup_zombie_pipeline_state: { Args: never; Returns: Json }
       correct_subscription: {
         Args: {
@@ -1414,13 +1472,13 @@ export type Database = {
         Args: { p_amount: number; p_workspace_id: string }
         Returns: number
       }
-      delete_sns_items_by_links: {
-        Args: { p_links: string[]; p_session_id: string }
-        Returns: number
-      }
       delete_scheduled_subscription: {
         Args: { p_subscription_id: string }
         Returns: string
+      }
+      delete_sns_items_by_links: {
+        Args: { p_links: string[]; p_session_id: string }
+        Returns: number
       }
       extend_subscription: {
         Args: { p_new_ended_at: string; p_workspace_id: string }
@@ -1435,6 +1493,12 @@ export type Database = {
         Returns: {
           report_id: string
           role: string
+          workspace_id: string
+        }[]
+      }
+      initialized_workspaces: {
+        Args: { ws_ids: string[] }
+        Returns: {
           workspace_id: string
         }[]
       }
