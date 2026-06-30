@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "gen:types": "SUPABASE_CHECK_UPDATE=false supabase gen types typescript --project-id uggbeedbspbypvousmwi --schema public 2>/dev/null > src/types/database.types.ts"
   },
   "dependencies": {

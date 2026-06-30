@@ -1,7 +1,7 @@
 # sir-frontend Findings — pass 3
 
 작성일: 2026-06-25
-최종 업데이트: 2026-06-30 — create-user super_admin 제한, service-role body validation 보강, monitoring AI proxy timeout/error normalization 반영.
+최종 업데이트: 2026-06-30 — create-user super_admin 제한, service-role body validation 보강, monitoring AI proxy timeout/error normalization, typecheck script 반영.
 표기: Evidence = 코드/설정 직접 근거, Inference = 근거 기반 추론, Unknown = 추가 확인 필요.
 
 ## Ranked findings
@@ -14,7 +14,7 @@
 | 4 | Environment secret handling | `.env.local`에 실제 secret이 로컬 평문으로 존재한다. git에는 ignore되지만 로컬/협업/캡처 유출 위험은 남는다. | Low/Process | High | `.env.local` key names, `.gitignore:16` ignores `*.local`, `git ls-files` shows not tracked |
 | 5 | Error/network resilience | monitoring AI backend proxy route는 공통 helper로 timeout과 normalized 502/504 error shape를 갖는다. 남은 표면은 다른 외부/backend proxy route의 timeout/retry 일관성이다. | Resolved for monitoring AI / Low remaining | High | `src/app/api/monitoring/ai-analysis/_proxy.ts`; `src/app/api/monitoring/ai-analysis/**/route.ts` |
 | 6 | Type drift | live DB에서 `risk_notice_reads` RLS 적용은 확인됐지만 generated Supabase 타입에는 아직 없어 raw PostgREST fetch 경계가 남아 있다. | Low/Medium | High | `rg risk_notice_reads src/types/database.types.ts` no match; `src/lib/api/reportApi.ts:887-918`; user-provided `pg_policies` result 2026-06-29 |
-| 7 | Test surface | 공식 `test`/`typecheck`/`e2e` script와 test runner config가 없고, repo-local `test*.mjs`는 live/operational script 성격이다. | Medium | High | `package.json:6-11`; `find` test/config scan; `scripts/test-*.mjs` inventory |
+| 7 | Test surface | `typecheck` script는 추가됐지만, 공식 `test`/`e2e` script와 test runner config는 아직 없다. repo-local `test*.mjs`는 live/operational script 성격이다. | Medium | High | `package.json`; `find` test/config scan; `scripts/test-*.mjs` inventory |
 | 8 | Lint/config | Phase 1A에서 `scripts/**/*.mjs` Node globals override를 추가해 repo-level `npm run lint`가 통과한다. 기존 app-source warnings 13건은 남아 있다. | Resolved/Low | High | `eslint.config.js:13-19`; `npm run lint` |
 | 9 | Dependency vulnerabilities | Phase 1A에서 production audit는 0건으로 정리됐다. Legacy `jspdf`/`jspdf-autotable` dead path를 제거했고, `next`/`lodash`/`ws`/Next nested `postcss`를 lockfile/override로 보정했다. Dev-only audit 취약점은 별도 후속이다. | Resolved for prod / Dev risk remains | High | `package.json`, `package-lock.json`; `src/components/pipeline/ReportResult.tsx`; deleted `src/utils/reportPdf.ts`; `npm audit --omit=dev --audit-level=moderate` |
 | 10 | Route param consistency | Phase 2에서 client report/PDF entry와 PDF metadata/API handoff가 `reports.id` + `workspace_id` 조합을 검증하도록 강화됐다. 남은 표면은 내부 helper가 `reportId`로 meta/session을 캐시하는 구조를 계속 entry guard 뒤에서만 쓰도록 유지하는 것이다. | Resolved major path / Low remaining | High | `src/lib/api/reportApi.ts:194-200`; `src/app/(client)/report/[workspaceId]/[reportId]/page.tsx:76-112`; `src/app/report-pdf/[workspaceId]/[reportId]/page.tsx:129-137`; `src/components/client/sidebar/PdfDownloadButton.tsx:99-118`, `:161-167` |
@@ -80,7 +80,7 @@ Inference: the read-state table is applied and RLS is policy-aligned. Frontend g
 
 ### F7. Test surface gap
 
-- Evidence: `package.json:6-11` has no `test`, `typecheck`, or `e2e` script.
+- Evidence: `package.json` now has `typecheck: tsc --noEmit`, but still has no `test` or `e2e` script.
 - Evidence: no `vitest.config.*`, `jest.config.*`, or `playwright.config.*` was found in this pass.
 - Evidence: repo-local test-like files are `scripts/test-dknd-e2e.mjs`, `scripts/test-future-sub.mjs`, `scripts/test-grace-cron.mjs`, and `scripts/test-rpc-double-click.mjs`.
 
@@ -136,7 +136,7 @@ Inference: admin/super_admin access to client routes is intended support/preview
 
 ### F13. Cross-repo smoke gap → manual runbook
 
-- Evidence: `package.json:6-11` has no `test`, `typecheck`, or `e2e` script.
+- Evidence: `package.json` now has `typecheck: tsc --noEmit`, but still has no `test` or `e2e` script.
 - Evidence: backend `tests/test_pdf_preflight.py` and `tests/test_pdf_service.py` cover preflight and token-free navigation only.
 - Evidence: `docs/code-audit/pdf-smoke-runbook.md` now records manual smoke scenarios for valid PDF render, mismatch, token expiry, role policy, and token/log redaction.
 
@@ -147,7 +147,7 @@ Inference: full-stack PDF coverage remains manual for now because it depends on 
 1. Continue route-handler body validation matrix for remaining `src/app/api/**/route.ts` (schema/no schema, numeric bounds, enum checks, error shape); high-risk create-user/workspace-token mutation bodies now have explicit guards.
 2. Review remaining external/backend proxy routes for timeout and normalized error shape; monitoring AI proxy routes now use a common helper.
 3. Regenerate Supabase DB types now that `risk_notice_reads` is confirmed applied, then replace/retire raw PostgREST type escape if practical.
-4. Add explicit `typecheck` and CI-safe test scripts; keep live/operational smoke scripts behind env guards.
+4. Add CI-safe `test`/`e2e` scripts when a runner exists; `typecheck` is now explicit and live/operational smoke scripts should remain behind env guards.
 5. Triage remaining dev-only `npm audit` findings (`@babel/core`, `brace-expansion`, `flatted`, `js-yaml`, `picomatch`, dev `postcss`) separately from production audit closure.
 6. Add high-value tests for route auth, report/PDF render, risk NEW read-state invalidation, and admin route handler role gates.
 7. Run the manual cross-repo PDF smoke runbook after PDF/auth changes or before release.
