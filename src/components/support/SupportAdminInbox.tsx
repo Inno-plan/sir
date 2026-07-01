@@ -86,6 +86,11 @@ export function SupportAdminInbox({ assignedIds }: SupportAdminInboxProps) {
     return source.filter((workspace) => allowed.has(workspace.id));
   }, [allWorkspaces, assignedIds]);
 
+  const workspaceNameById = useMemo(
+    () => new Map(workspaces.map((workspace) => [workspace.id, workspace.company_name])),
+    [workspaces]
+  );
+
   const [selectedWsId, setSelectedWsId] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedId, setSelectedId] = useState('');
@@ -231,6 +236,9 @@ export function SupportAdminInbox({ assignedIds }: SupportAdminInboxProps) {
               ) : (
                 filtered.map((item) => {
                   const active = selected?.id === item.id;
+                  const workspaceName = workspaceNameById.get(item.workspaceId);
+                  const showWorkspaceName = !selectedWsId && !!workspaceName;
+
                   return (
                     <button
                       key={item.id}
@@ -248,7 +256,13 @@ export function SupportAdminInbox({ assignedIds }: SupportAdminInboxProps) {
                         <p className="line-clamp-2 text-sm font-bold text-slate-900">
                           {item.title}
                         </p>
-                        <p className="mt-1 text-xs text-slate-400">
+                        <p className="mt-1 truncate text-xs text-slate-400">
+                          {showWorkspaceName && (
+                            <>
+                              <span>{workspaceName}</span>
+                              <span className="mx-1">·</span>
+                            </>
+                          )}
                           {formatDateTime(item.createdAt)}
                         </p>
                       </div>
