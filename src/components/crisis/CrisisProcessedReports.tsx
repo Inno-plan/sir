@@ -8,9 +8,9 @@ import type { RiskReport } from '@/types/report';
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   requested: { label: '요청 완료', className: 'bg-slate-100 text-slate-600' },
-  pending: { label: '결과 대기', className: 'bg-amber-50 text-amber-600' },
+  pending: { label: '삭제 처리 중', className: 'bg-amber-50 text-amber-600' },
   resolved: { label: '삭제 완료', className: 'bg-blue-50 text-blue-600' },
-  rejected: { label: '삭제 반려', className: 'bg-red-50 text-red-600' },
+  rejected: { label: '삭제 불가', className: 'bg-red-50 text-red-600' },
 };
 
 const PLATFORM_LABELS: Record<string, string> = {

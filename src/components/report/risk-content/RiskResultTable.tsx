@@ -7,7 +7,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   resolved: { label: '삭제 완료', className: 'bg-blue-50 text-blue-600' },
-  rejected: { label: '삭제 반려', className: 'bg-red-50 text-red-600' },
+  rejected: { label: '삭제 불가', className: 'bg-red-50 text-red-600' },
 };
 
 const PLATFORM_LABELS: Record<string, string> = {
