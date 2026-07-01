@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
-import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions, Listbox, ListboxButton, ListboxOption, ListboxOptions } from '@headlessui/react';
+import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from '@headlessui/react';
 import { ChevronDown, ChevronLeft, ChevronRight, Check, Paperclip, Download } from 'lucide-react';
 import { useWorkspaces } from '@/hooks/workspace/useWorkspaceQuery';
 import { useRiskReports } from '@/hooks/report/useReportQuery';
@@ -13,9 +13,9 @@ import { getErrorMessage } from '@/lib/utils';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { WorkspaceCombobox } from '@/components/ui/WorkspaceCombobox';
 import { ReportCalendarSelector } from '@/components/report/ReportCalendarSelector';
 import type { RiskReport } from '@/lib/api/reportApi';
-import type { Workspace } from '@/types/workspace';
 
 const PAGE_SIZE = 50;
 
@@ -81,72 +81,6 @@ const STATUS_FILTERS = [
   { key: 'all', label: '전체' },
   ...STATUS_OPTIONS.map((s) => ({ key: s.value, label: s.label })),
 ] as const;
-
-// ── 워크스페이스 Combobox ──
-
-function WorkspaceCombobox({
-  workspaces,
-  selectedId,
-  onChange,
-}: {
-  workspaces: Workspace[];
-  selectedId: string;
-  onChange: (id: string) => void;
-}) {
-  const [query, setQuery] = useState('');
-
-  const allOption = { id: '', company_name: '전체 워크스페이스' } as Workspace;
-  const options = [allOption, ...workspaces];
-  const filtered = query
-    ? options.filter((ws) => ws.company_name.toLowerCase().includes(query.toLowerCase()))
-    : options;
-
-  const selected = workspaces.find((ws) => ws.id === selectedId) ?? allOption;
-
-  return (
-    <Combobox
-      value={selected}
-      onChange={(ws) => onChange(ws?.id ?? '')}
-      onClose={() => setQuery('')}
-    >
-      <div className="relative w-full sm:w-56">
-        <div className="flex items-center border border-slate-200 rounded-lg focus-within:border-blue-400 transition-colors bg-white">
-          <ComboboxInput
-            className="w-full text-sm px-3 py-2 outline-none bg-transparent"
-            displayValue={(ws: Workspace) => ws?.company_name ?? ''}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="워크스페이스 검색"
-          />
-          <ComboboxButton className="px-2 text-slate-400 bg-transparent cursor-pointer">
-            <ChevronDown size={16} />
-          </ComboboxButton>
-        </div>
-        <ComboboxOptions className="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-lg bg-white border border-slate-200 shadow-lg py-1">
-          {filtered.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-slate-400">검색 결과 없음</div>
-          ) : (
-            filtered.map((ws) => (
-              <ComboboxOption
-                key={ws.id || '_all'}
-                value={ws}
-                className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer data-[focus]:bg-blue-50 transition-colors"
-              >
-                {({ selected: isSelected }) => (
-                  <>
-                    <Check size={14} className={isSelected ? 'text-blue-600' : 'text-transparent'} />
-                    <span className={isSelected ? 'font-semibold text-blue-600' : 'text-slate-700'}>
-                      {ws.company_name}
-                    </span>
-                  </>
-                )}
-              </ComboboxOption>
-            ))
-          )}
-        </ComboboxOptions>
-      </div>
-    </Combobox>
-  );
-}
 
 // ── 상세 모달 ──
 
