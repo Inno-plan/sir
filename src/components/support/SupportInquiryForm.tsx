@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from '@headlessui/react';
 import { Check, CheckCircle2, ChevronDown, MessageCircle, Send } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { useCreateSupportInquiry } from '@/hooks/support/useSupportMutation';
 import {
   SUPPORT_CATEGORY_OPTIONS,
@@ -32,6 +33,7 @@ export function SupportInquiryForm({
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const isModal = variant === 'modal';
   const selectedCategory = SUPPORT_CATEGORY_OPTIONS.find((option) => option.id === category);
@@ -39,8 +41,13 @@ export function SupportInquiryForm({
   const canSubmit =
     !!workspaceId && title.trim().length > 0 && contentLength > 0 && !createInquiry.isPending;
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!canSubmit) return;
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmSubmit = async () => {
     if (!canSubmit) return;
     try {
       await createInquiry.mutateAsync({
@@ -49,6 +56,7 @@ export function SupportInquiryForm({
         title,
         content,
       });
+      setConfirmOpen(false);
       if (onSubmitted) {
         setTitle('');
         setContent('');
@@ -164,8 +172,49 @@ export function SupportInquiryForm({
     </form>
   );
 
+  const confirmModal = (
+    <ConfirmModal
+      open={confirmOpen}
+      onClose={() => setConfirmOpen(false)}
+      onConfirm={() => {
+        void handleConfirmSubmit();
+      }}
+      title="문의 접수"
+      confirmLabel="접수"
+      loading={createInquiry.isPending}
+      message={
+        <div className="flex flex-col gap-3">
+          <p>아래 내용으로 문의를 접수하시겠습니까?</p>
+          <div className="grid gap-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
+            <div>
+              <p className="text-xs font-bold text-slate-500">문의 종류</p>
+              <p className="mt-1 font-semibold text-slate-900">
+                {getSupportCategoryLabel(category)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-500">문의 제목</p>
+              <p className="mt-1 font-semibold text-slate-900">{title.trim()}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-500">문의 내용</p>
+              <p className="mt-1 max-h-44 overflow-y-auto whitespace-pre-line leading-relaxed text-slate-800">
+                {content.trim()}
+              </p>
+            </div>
+          </div>
+        </div>
+      }
+    />
+  );
+
   if (isModal) {
-    return form;
+    return (
+      <>
+        {form}
+        {confirmModal}
+      </>
+    );
   }
 
   return (
@@ -203,6 +252,7 @@ export function SupportInquiryForm({
         )}
 
         {form}
+        {confirmModal}
       </section>
     </div>
   );
