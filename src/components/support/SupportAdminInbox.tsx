@@ -2,119 +2,36 @@
 
 import { useMemo, useState } from 'react';
 import { CheckCircle2, Clock3, Send } from 'lucide-react';
+import { useAnswerSupportInquiry } from '@/hooks/support/useSupportMutation';
+import {
+  useSupportInquiries,
+  useSupportInquiriesRealtime,
+} from '@/hooks/support/useSupportQuery';
 import { useWorkspaces } from '@/hooks/workspace/useWorkspaceQuery';
 import { Button } from '@/components/ui/Button';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { WorkspaceCombobox } from '@/components/ui/WorkspaceCombobox';
-import type { Workspace } from '@/types/workspace';
+import { getErrorMessage } from '@/lib/utils';
+import {
+  getSupportCategoryLabel,
+  type SupportCategory,
+  type SupportInquiryStatus,
+} from '@/lib/api/supportApi';
 
-const CATEGORY_LABEL = {
-  feature: '기능 제안',
-  bug: '오류 신고',
-  upgrade: '서비스 업그레이드',
-  other: '기타',
-} as const;
+type StatusFilter = 'all' | SupportInquiryStatus;
 
-type CategoryId = keyof typeof CATEGORY_LABEL;
-type InquiryStatus = 'waiting' | 'answered';
-type StatusFilter = 'all' | InquiryStatus;
-
-const CATEGORY_BADGE_CLASS: Record<CategoryId, string> = {
+const CATEGORY_BADGE_CLASS: Record<SupportCategory, string> = {
   feature: 'bg-violet-50 text-violet-700 ring-violet-100',
   bug: 'bg-red-50 text-red-700 ring-red-100',
   upgrade: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
   other: 'bg-slate-100 text-slate-600 ring-slate-200',
 };
 
-interface SupportInquiryItem {
-  id: string;
-  workspaceId: string;
-  workspaceName: string;
-  category: CategoryId;
-  title: string;
-  content: string;
-  createdAt: string;
-  status: InquiryStatus;
-  reply?: string;
-}
-
-const FALLBACK_WORKSPACES: Workspace[] = [
-  {
-    id: '11111111-1111-4111-8111-111111111111',
-    company_name: '디케이앤디',
-    ticker: '263020',
-    sir_score: null,
-    created_at: '2026-01-01T00:00:00+09:00',
-    updated_at: '2026-01-01T00:00:00+09:00',
-  },
-  {
-    id: '22222222-2222-4222-8222-222222222222',
-    company_name: '샘플 고객사',
-    ticker: '000000',
-    sir_score: null,
-    created_at: '2026-01-01T00:00:00+09:00',
-    updated_at: '2026-01-01T00:00:00+09:00',
-  },
-  {
-    id: '33333333-3333-4333-8333-333333333333',
-    company_name: '테스트 기업',
-    ticker: '111111',
-    sir_score: null,
-    created_at: '2026-01-01T00:00:00+09:00',
-    updated_at: '2026-01-01T00:00:00+09:00',
-  },
-];
-
 const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: 'all', label: '전체 문의' },
   { key: 'waiting', label: '답변 대기' },
   { key: 'answered', label: '답변 완료' },
 ];
-
-function buildSampleInquiries(workspaces: Workspace[]): SupportInquiryItem[] {
-  const [first, second = first, third = first] = workspaces;
-  if (!first) return [];
-
-  const items: SupportInquiryItem[] = [
-    {
-      id: `inq-${first.id}-upgrade`,
-      workspaceId: first.id,
-      workspaceName: first.company_name,
-      category: 'upgrade',
-      title: '위기 대응 센터 기능을 추가로 사용하고 싶습니다',
-      content:
-        '현재 보고서와 인사이트를 확인하고 있습니다. 리스크 콘텐츠 처리 결과까지 확인할 수 있도록 서비스 업그레이드 가능 여부와 예상 일정을 안내해주세요.',
-      createdAt: '2026-07-01T10:24:00+09:00',
-      status: 'waiting',
-    },
-    {
-      id: `inq-${second.id}-bug`,
-      workspaceId: second.id,
-      workspaceName: second.company_name,
-      category: 'bug',
-      title: '모바일에서 보고서 탭 이동이 잘 안 됩니다',
-      content:
-        '아이폰 사파리에서 보고서 하단 탭을 누르면 가끔 반응이 없습니다. 새로고침하면 다시 동작하지만 반복적으로 발생합니다.',
-      createdAt: '2026-07-01T09:42:00+09:00',
-      status: 'answered',
-      reply:
-        '제보 감사합니다. 모바일 사파리 탭 이벤트를 확인 중이며, 재현 환경을 확보한 뒤 수정 예정입니다. 임시로 새로고침 후 이용 부탁드립니다.',
-    },
-    {
-      id: `inq-${third.id}-feature`,
-      workspaceId: third.id,
-      workspaceName: third.company_name,
-      category: 'feature',
-      title: '주간 리포트 요약을 메일로 받고 싶습니다',
-      content:
-        '매주 월요일 오전에 주간 핵심 지표와 주요 리스크만 요약해서 받을 수 있는 기능이 있으면 좋겠습니다.',
-      createdAt: '2026-06-30T16:18:00+09:00',
-      status: 'waiting',
-    },
-  ];
-
-  return items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-}
 
 function formatDateTime(value: string) {
   const date = new Date(value);
@@ -126,11 +43,11 @@ function formatDateTime(value: string) {
   return `${mm}.${dd} ${hh}:${min}`;
 }
 
-function statusLabel(status: InquiryStatus) {
+function statusLabel(status: SupportInquiryStatus) {
   return status === 'answered' ? '답변 완료' : '답변 대기';
 }
 
-function StatusBadge({ status }: { status: InquiryStatus }) {
+function StatusBadge({ status }: { status: SupportInquiryStatus }) {
   const answered = status === 'answered';
   const Icon = answered ? CheckCircle2 : Clock3;
 
@@ -146,12 +63,12 @@ function StatusBadge({ status }: { status: InquiryStatus }) {
   );
 }
 
-function CategoryBadge({ category }: { category: CategoryId }) {
+function CategoryBadge({ category }: { category: SupportCategory }) {
   return (
     <span
       className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-semibold ring-1 ${CATEGORY_BADGE_CLASS[category]}`}
     >
-      {CATEGORY_LABEL[category]}
+      {getSupportCategoryLabel(category)}
     </span>
   );
 }
@@ -163,51 +80,46 @@ interface SupportAdminInboxProps {
 export function SupportAdminInbox({ assignedIds }: SupportAdminInboxProps) {
   const { data: allWorkspaces = [] } = useWorkspaces();
   const workspaces = useMemo(() => {
-    const source = allWorkspaces.length > 0 ? allWorkspaces : FALLBACK_WORKSPACES;
+    const source = allWorkspaces;
     if (assignedIds === null) return source;
-    if (allWorkspaces.length === 0) return source;
     const allowed = new Set(assignedIds);
     return source.filter((workspace) => allowed.has(workspace.id));
   }, [allWorkspaces, assignedIds]);
 
-  const baseInquiries = useMemo(() => buildSampleInquiries(workspaces), [workspaces]);
-  const [answeredById, setAnsweredById] = useState<Record<string, string>>({});
   const [selectedWsId, setSelectedWsId] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedId, setSelectedId] = useState('');
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const answerInquiry = useAnswerSupportInquiry();
+  const {
+    data: loadedInquiries = [],
+    isLoading,
+    isError,
+    error,
+  } = useSupportInquiries(selectedWsId || undefined);
 
-  const inquiries = useMemo(
-    () =>
-      baseInquiries
-        .map((item) => {
-          const overrideReply = answeredById[item.id];
-          if (!overrideReply) return item;
-          return { ...item, status: 'answered' as InquiryStatus, reply: overrideReply };
-        })
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    [baseInquiries, answeredById]
-  );
+  useSupportInquiriesRealtime(selectedWsId || undefined);
 
-  const workspaceFiltered = useMemo(() => {
-    if (!selectedWsId) return inquiries;
-    return inquiries.filter((item) => item.workspaceId === selectedWsId);
-  }, [inquiries, selectedWsId]);
+  const inquiries = useMemo(() => {
+    if (assignedIds === null || selectedWsId) return loadedInquiries;
+    const allowed = new Set(assignedIds);
+    return loadedInquiries.filter((item) => allowed.has(item.workspaceId));
+  }, [assignedIds, loadedInquiries, selectedWsId]);
 
   const counts = useMemo(
     () => ({
-      all: workspaceFiltered.length,
-      waiting: workspaceFiltered.filter((item) => item.status === 'waiting').length,
-      answered: workspaceFiltered.filter((item) => item.status === 'answered').length,
+      all: inquiries.length,
+      waiting: inquiries.filter((item) => item.status === 'waiting').length,
+      answered: inquiries.filter((item) => item.status === 'answered').length,
     }),
-    [workspaceFiltered]
+    [inquiries]
   );
 
   const filtered = useMemo(() => {
-    if (statusFilter === 'all') return workspaceFiltered;
-    return workspaceFiltered.filter((item) => item.status === statusFilter);
-  }, [workspaceFiltered, statusFilter]);
+    if (statusFilter === 'all') return inquiries;
+    return inquiries.filter((item) => item.status === statusFilter);
+  }, [inquiries, statusFilter]);
 
   const selected = filtered.find((item) => item.id === selectedId) ?? filtered[0] ?? null;
   const reply = selected ? (replyDrafts[selected.id] ?? '') : '';
@@ -228,17 +140,24 @@ export function SupportAdminInbox({ assignedIds }: SupportAdminInboxProps) {
     setReplyDrafts((prev) => ({ ...prev, [selected.id]: value }));
   };
 
-  const handleReplyConfirm = () => {
+  const handleReplyConfirm = async () => {
     if (!selected) return;
     const value = reply.trim();
     if (!value) return;
-    setAnsweredById((prev) => ({ ...prev, [selected.id]: value }));
-    setReplyDrafts((prev) => {
-      const next = { ...prev };
-      delete next[selected.id];
-      return next;
-    });
-    setConfirmOpen(false);
+    try {
+      await answerInquiry.mutateAsync({
+        inquiryId: selected.id,
+        answerContent: value,
+      });
+      setReplyDrafts((prev) => {
+        const next = { ...prev };
+        delete next[selected.id];
+        return next;
+      });
+      setConfirmOpen(false);
+    } catch {
+      // 에러 토스트는 mutation hook 에서 처리.
+    }
   };
 
   return (
@@ -291,9 +210,23 @@ export function SupportAdminInbox({ assignedIds }: SupportAdminInboxProps) {
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto p-3">
-              {filtered.length === 0 ? (
+              {isLoading ? (
                 <div className="flex min-h-48 items-center justify-center px-5 text-center">
-                  <p className="text-xs text-text-muted">조건에 맞는 문의가 없습니다.</p>
+                  <p className="text-xs text-text-muted">문의를 불러오는 중입니다.</p>
+                </div>
+              ) : isError ? (
+                <div className="flex min-h-48 items-center justify-center px-5 text-center">
+                  <p className="text-xs text-red-500">
+                    {getErrorMessage(error, '문의 목록을 불러오지 못했습니다.')}
+                  </p>
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="flex h-full min-h-48 items-center justify-center px-5 text-center">
+                  <p className="text-xs text-text-muted">
+                    {inquiries.length === 0
+                      ? '접수된 문의가 없습니다.'
+                      : '조건에 맞는 문의가 없습니다.'}
+                  </p>
                 </div>
               ) : (
                 filtered.map((item) => {
@@ -350,11 +283,11 @@ export function SupportAdminInbox({ assignedIds }: SupportAdminInboxProps) {
                     </p>
                   </div>
 
-                  {selected.reply ? (
+                  {selected.answerContent ? (
                     <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
                       <p className="text-xs font-bold text-emerald-700">등록된 답변</p>
                       <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-emerald-900">
-                        {selected.reply}
+                        {selected.answerContent}
                       </p>
                     </div>
                   ) : (
@@ -366,24 +299,25 @@ export function SupportAdminInbox({ assignedIds }: SupportAdminInboxProps) {
                         id="support-reply"
                         value={reply}
                         onChange={(event) => handleReplyChange(event.target.value)}
+                        disabled={answerInquiry.isPending}
                         rows={8}
                         placeholder="고객에게 전달할 답변을 작성해주세요."
-                        className="w-full resize-y rounded-2xl border border-slate-200 px-4 py-3 text-sm leading-relaxed text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                        className="w-full resize-y rounded-2xl border border-slate-200 px-4 py-3 text-sm leading-relaxed text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50"
                       />
                     </div>
                   )}
                 </div>
 
-                {!selected.reply && (
+                {!selected.answerContent && (
                   <div className="flex justify-end border-t border-slate-100 pt-5">
                     <Button
                       type="button"
                       onClick={() => setConfirmOpen(true)}
-                      disabled={!reply.trim()}
+                      disabled={!reply.trim() || answerInquiry.isPending}
                       className="inline-flex items-center justify-center gap-2"
                     >
                       <Send size={16} />
-                      답변 등록
+                      {answerInquiry.isPending ? '등록 중...' : '답변 등록'}
                     </Button>
                   </div>
                 )}
@@ -391,9 +325,12 @@ export function SupportAdminInbox({ assignedIds }: SupportAdminInboxProps) {
                 <ConfirmModal
                   open={confirmOpen}
                   onClose={() => setConfirmOpen(false)}
-                  onConfirm={handleReplyConfirm}
+                  onConfirm={() => {
+                    void handleReplyConfirm();
+                  }}
                   title="답변 등록"
                   confirmLabel="등록"
+                  loading={answerInquiry.isPending}
                   message={
                     <div className="flex flex-col gap-3">
                       <p>아래 내용으로 답변을 등록하시겠습니까?</p>

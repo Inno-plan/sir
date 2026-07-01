@@ -18,10 +18,7 @@ export default async function UserSupportPage({
   return (
     <div className="min-h-full bg-bg-light">
       <SupportInquiryForm
-        audience="user"
         defaultCategory={sp.type}
-        userEmail={user.email}
-        companyName={user.companyName}
         workspaceId={workspaceId}
       />
     </div>
