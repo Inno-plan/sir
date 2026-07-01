@@ -60,14 +60,13 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // user 역할은 관리자 페이지 접근 차단 (/workspace, /risk-reports, /users, /crawl-history)
-    // /users, /crawl-history 는 super_admin 전용 — 일반 admin 도 차단
+    // user 역할은 관리자 페이지 접근 차단 (/workspace, /risk-reports, /users)
+    // /users 는 super_admin 전용 — 일반 admin 도 차단
     const isAdminRoute =
       pathname.startsWith('/workspace') ||
       pathname.startsWith('/risk-reports') ||
-      pathname.startsWith('/users') ||
-      pathname.startsWith('/crawl-history');
-    const isSuperAdminRoute = pathname.startsWith('/users') || pathname.startsWith('/crawl-history');
+      pathname.startsWith('/users');
+    const isSuperAdminRoute = pathname.startsWith('/users');
     if (isAdminRoute) {
       const role = await getUserRole(supabase, user.id);
       if (role === 'user') {
