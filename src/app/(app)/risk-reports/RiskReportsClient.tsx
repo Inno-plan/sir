@@ -46,6 +46,13 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
 
 const UNKNOWN_STATUS_STYLE = { label: '알 수 없음', className: 'bg-slate-100 text-slate-600' };
 
+const CRITICAL_TYPE_LABELS: Record<string, string> = {
+  defamation: '명예훼손',
+  insult: '욕설/비방',
+  rumor: '루머',
+  spam: '스팸',
+};
+
 function normalizeStatus(status: string | null | undefined): string {
   return (status ?? '').trim().toLowerCase();
 }
@@ -56,6 +63,10 @@ function getStatusConfig(status: string | null | undefined): { label: string; cl
     ...UNKNOWN_STATUS_STYLE,
     label: status?.trim() || UNKNOWN_STATUS_STYLE.label,
   };
+}
+
+function getCriticalTypeLabel(type: string): string {
+  return CRITICAL_TYPE_LABELS[type] ?? type;
 }
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -154,6 +165,7 @@ function DetailModal({ report, onClose }: { report: RiskReport; onClose: () => v
 
   const oldStatusLabel = getStatusConfig(report.status).label;
   const newStatusLabel = getStatusConfig(status).label;
+  const criticalTypeLabel = getCriticalTypeLabel(report.critical_type);
 
   const doSave = async () => {
     try {
@@ -203,7 +215,7 @@ function DetailModal({ report, onClose }: { report: RiskReport; onClose: () => v
         </div>
         <div className="flex flex-col gap-1">
           <span className="text-xs font-semibold text-text-muted">리스크 유형</span>
-          <span className="text-sm text-text-dark">{report.critical_type}</span>
+          <span className="text-sm text-text-dark">{criticalTypeLabel}</span>
         </div>
       </div>
 
