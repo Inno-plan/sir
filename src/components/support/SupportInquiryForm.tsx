@@ -16,9 +16,16 @@ import {
 interface SupportInquiryFormProps {
   defaultCategory?: string;
   workspaceId?: string;
+  variant?: 'page' | 'modal';
+  onSubmitted?: () => void;
 }
 
-export function SupportInquiryForm({ defaultCategory, workspaceId }: SupportInquiryFormProps) {
+export function SupportInquiryForm({
+  defaultCategory,
+  workspaceId,
+  variant = 'page',
+  onSubmitted,
+}: SupportInquiryFormProps) {
   const createInquiry = useCreateSupportInquiry();
   const initialCategory = isSupportCategory(defaultCategory) ? defaultCategory : 'feature';
   const [category, setCategory] = useState<SupportCategory>(initialCategory);
@@ -26,6 +33,7 @@ export function SupportInquiryForm({ defaultCategory, workspaceId }: SupportInqu
   const [content, setContent] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
+  const isModal = variant === 'modal';
   const selectedCategory = SUPPORT_CATEGORY_OPTIONS.find((option) => option.id === category);
   const contentLength = content.trim().length;
   const canSubmit =
@@ -41,7 +49,15 @@ export function SupportInquiryForm({ defaultCategory, workspaceId }: SupportInqu
         title,
         content,
       });
-      setSubmitted(true);
+      if (onSubmitted) {
+        setTitle('');
+        setContent('');
+        setCategory(initialCategory);
+        setSubmitted(false);
+        onSubmitted();
+      } else {
+        setSubmitted(true);
+      }
     } catch {
       // 에러 토스트는 mutation hook 에서 처리.
     }
@@ -53,6 +69,104 @@ export function SupportInquiryForm({ defaultCategory, workspaceId }: SupportInqu
     setContent('');
     setCategory(initialCategory);
   };
+
+  const form = (
+    <form
+      onSubmit={handleSubmit}
+      className={
+        isModal
+          ? 'grid gap-5'
+          : 'grid gap-5 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6'
+      }
+    >
+      <div className="grid gap-2">
+        <label htmlFor="support-category" className="text-sm font-bold text-slate-900">
+          문의 종류 <span className="text-red-500">*</span>
+        </label>
+        <Listbox value={category} onChange={setCategory}>
+          <div className="relative w-full sm:w-72">
+            <ListboxButton
+              id="support-category"
+              className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm transition-colors hover:bg-slate-50 focus:border-blue-400 focus:outline-none"
+            >
+              <span className="flex-1 text-left font-semibold text-slate-700">
+                {selectedCategory?.label}
+              </span>
+              <ChevronDown size={16} className="shrink-0 text-slate-400" />
+            </ListboxButton>
+            <ListboxOptions className="absolute z-50 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+              {SUPPORT_CATEGORY_OPTIONS.map((option) => (
+                <ListboxOption
+                  key={option.id}
+                  value={option.id}
+                  className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm transition-colors data-[focus]:bg-blue-50"
+                >
+                  {({ selected }) => (
+                    <>
+                      <Check
+                        size={14}
+                        className={selected ? 'text-blue-600' : 'text-transparent'}
+                      />
+                      <span className={selected ? 'font-semibold text-blue-600' : 'text-slate-700'}>
+                        {option.label}
+                      </span>
+                    </>
+                  )}
+                </ListboxOption>
+              ))}
+            </ListboxOptions>
+          </div>
+        </Listbox>
+      </div>
+
+      <div className="grid gap-2">
+        <label htmlFor="support-title" className="text-sm font-bold text-slate-900">
+          문의 제목 <span className="text-red-500">*</span>
+        </label>
+        <input
+          id="support-title"
+          type="text"
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          placeholder="문의 제목을 입력해주세요."
+          className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+          maxLength={80}
+        />
+      </div>
+
+      <div className="grid gap-2">
+        <div className="flex items-center justify-between gap-3">
+          <label htmlFor="support-content" className="text-sm font-bold text-slate-900">
+            문의 내용 <span className="text-red-500">*</span>
+          </label>
+          <span className="text-xs text-slate-400">{contentLength.toLocaleString()}자</span>
+        </div>
+        <textarea
+          id="support-content"
+          value={content}
+          onChange={(event) => setContent(event.target.value)}
+          placeholder={getSupportCategoryPlaceholder(category)}
+          rows={isModal ? 7 : 8}
+          className="w-full resize-y rounded-lg border border-slate-200 px-4 py-3 text-sm leading-relaxed text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+        />
+      </div>
+
+      <div className="flex justify-end border-t border-slate-100 pt-5">
+        <Button
+          type="submit"
+          disabled={!canSubmit}
+          className="inline-flex items-center justify-center gap-2"
+        >
+          <Send size={16} />
+          {createInquiry.isPending ? '접수 중...' : '문의 작성'}
+        </Button>
+      </div>
+    </form>
+  );
+
+  if (isModal) {
+    return form;
+  }
 
   return (
     <div className="h-full bg-white overflow-y-auto">
@@ -88,95 +202,7 @@ export function SupportInquiryForm({ defaultCategory, workspaceId }: SupportInqu
           </div>
         )}
 
-        <form
-          onSubmit={handleSubmit}
-          className="grid gap-5 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6"
-        >
-          <div className="grid gap-2">
-            <label htmlFor="support-category" className="text-sm font-bold text-slate-900">
-              문의 종류 <span className="text-red-500">*</span>
-            </label>
-            <Listbox value={category} onChange={setCategory}>
-              <div className="relative w-full sm:w-72">
-                <ListboxButton
-                  id="support-category"
-                  className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm transition-colors hover:bg-slate-50 focus:border-blue-400 focus:outline-none"
-                >
-                  <span className="flex-1 text-left font-semibold text-slate-700">
-                    {selectedCategory?.label}
-                  </span>
-                  <ChevronDown size={16} className="shrink-0 text-slate-400" />
-                </ListboxButton>
-                <ListboxOptions className="absolute z-50 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
-                  {SUPPORT_CATEGORY_OPTIONS.map((option) => (
-                    <ListboxOption
-                      key={option.id}
-                      value={option.id}
-                      className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm transition-colors data-[focus]:bg-blue-50"
-                    >
-                      {({ selected }) => (
-                        <>
-                          <Check
-                            size={14}
-                            className={selected ? 'text-blue-600' : 'text-transparent'}
-                          />
-                          <span
-                            className={selected ? 'font-semibold text-blue-600' : 'text-slate-700'}
-                          >
-                            {option.label}
-                          </span>
-                        </>
-                      )}
-                    </ListboxOption>
-                  ))}
-                </ListboxOptions>
-              </div>
-            </Listbox>
-          </div>
-
-          <div className="grid gap-2">
-            <label htmlFor="support-title" className="text-sm font-bold text-slate-900">
-              문의 제목 <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="support-title"
-              type="text"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="문의 제목을 입력해주세요."
-              className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-              maxLength={80}
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <div className="flex items-center justify-between gap-3">
-              <label htmlFor="support-content" className="text-sm font-bold text-slate-900">
-                문의 내용 <span className="text-red-500">*</span>
-              </label>
-              <span className="text-xs text-slate-400">{contentLength.toLocaleString()}자</span>
-            </div>
-            <textarea
-              id="support-content"
-              value={content}
-              onChange={(event) => setContent(event.target.value)}
-              placeholder={getSupportCategoryPlaceholder(category)}
-              rows={8}
-              className="w-full resize-y rounded-lg border border-slate-200 px-4 py-3 text-sm leading-relaxed text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-            />
-          </div>
-
-          <div className="flex justify-end border-t border-slate-100 pt-5">
-            <Button
-              type="submit"
-              disabled={!canSubmit}
-              className="inline-flex items-center justify-center gap-2"
-            >
-              <Send size={16} />
-              {createInquiry.isPending ? '접수 중...' : '문의 작성'}
-            </Button>
-          </div>
-        </form>
+        {form}
       </section>
     </div>
   );

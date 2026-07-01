@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
-import { SupportInquiryForm } from '@/components/support/SupportInquiryForm';
+import { SupportUserInquiries } from '@/components/support/SupportUserInquiries';
 
 export default async function UserSupportPage({
   params,
@@ -17,10 +17,7 @@ export default async function UserSupportPage({
 
   return (
     <div className="min-h-full bg-bg-light">
-      <SupportInquiryForm
-        defaultCategory={sp.type}
-        workspaceId={workspaceId}
-      />
+      <SupportUserInquiries defaultCategory={sp.type} workspaceId={workspaceId} />
     </div>
   );
 }

@@ -53,7 +53,7 @@ export function MobileTabBar() {
       active: pathname.startsWith('/crisis/'),
     },
     {
-      label: '지원',
+      label: '고객 지원',
       Icon: MessageCircle,
       href: supportHref,
       active: pathname.startsWith('/support/'),
