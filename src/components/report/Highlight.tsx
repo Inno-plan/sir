@@ -227,6 +227,9 @@ export function Highlight({ workspaceId, reportId, pdfMode = false, editable = f
           />
         </div>
       </ReportSubSection>
+      {isDaily && (
+        <div className="print-keep"><SirStockPanel {...sirStockProps} /></div>
+      )}
       {!isDaily && (
         <>
           {editable ? (

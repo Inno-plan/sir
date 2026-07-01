@@ -152,6 +152,7 @@ export function useSubmitRiskReport(workspaceId: string, reportId: string) {
       submitRiskReport({ ...input, workspaceId, reportId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: reportKeys.riskReportsAll(workspaceId) });
+      queryClient.invalidateQueries({ queryKey: reportKeys.riskReportsAll('_all') });
       toast.success('신고 대행 요청이 접수되었습니다.');
     },
     onError: (err) => {

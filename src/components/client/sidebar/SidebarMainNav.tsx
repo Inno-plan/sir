@@ -5,8 +5,10 @@ import {
   FileText,
   ShieldAlert,
   LineChart,
+  MessageCircle,
   // History,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useRiskItemSummary, useRiskNoticeRead } from '@/hooks/report/useReportQuery';
 
 interface SidebarMainNavProps {
@@ -18,7 +20,7 @@ interface SidebarMainNavProps {
 
 type NavItem = {
   label: string;
-  Icon: typeof FileText;
+  Icon: LucideIcon;
   href: string;
   active: boolean;
   showNew?: boolean;
@@ -54,11 +56,13 @@ export function SidebarMainNav({
 
   const crisisHref = workspaceId ? `/crisis/${workspaceId}` : '';
   const monitoringHref = workspaceId ? `/monitoring/${workspaceId}` : '';
+  const supportHref = workspaceId ? `/support/${workspaceId}` : '';
   // const historyHref = workspaceId ? `/insights-history/${workspaceId}` : '';
 
   const isReport = pathname.startsWith('/report/');
   const isCrisis = pathname.startsWith('/crisis/');
   const isMonitoring = pathname.startsWith('/monitoring/');
+  const isSupport = pathname.startsWith('/support/');
   // const isHistory = pathname.startsWith('/insights-history/');
   const hasUnseenRisk =
     isClientUser &&
@@ -79,6 +83,7 @@ export function SidebarMainNav({
       active: isCrisis,
       showNew: showCrisisNew,
     },
+    { label: '고객 지원', Icon: MessageCircle, href: supportHref, active: isSupport },
   ];
 
   const handleClick = (href: string) => {

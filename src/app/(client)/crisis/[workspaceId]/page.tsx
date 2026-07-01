@@ -5,7 +5,7 @@ import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigat
 import { useQuery } from '@tanstack/react-query';
 import { useDeleteRiskReport, useMarkRiskNoticeRead } from '@/hooks/report/useReportMutation';
 import { useRiskItemSummary, useRiskItems, useRiskReports } from '@/hooks/report/useReportQuery';
-import { useReports, useWorkspace, useWorkspaceSubscription } from '@/hooks/workspace/useWorkspaceQuery';
+import { useReports, useWorkspaceSubscription } from '@/hooks/workspace/useWorkspaceQuery';
 import { createClient } from '@/lib/supabase/client';
 import { Loading } from '@/components/ui/Loading';
 import { Tooltip } from '@/components/ui/Tooltip';
@@ -60,7 +60,6 @@ export default function CrisisCenterPage() {
   const router = useRouter();
   const workspaceId = params?.workspaceId as string;
 
-  const { data: workspace } = useWorkspace(workspaceId);
   const { data: subscription, isLoading: subLoading } = useWorkspaceSubscription(workspaceId);
   const hasArmor = subscription?.has_armor ?? false;
   const armorReady = !subLoading && subscription !== undefined;
@@ -102,13 +101,14 @@ export default function CrisisCenterPage() {
   }, [reportsList]);
   const deleteMutation = useDeleteRiskReport(workspaceId);
 
-
-  // requested = 사용자가 요청만 한 상태(취소 가능). 그 외(pending/resolved/rejected) = admin 처리 시작 → 취소 불가.
+  // detected = AI가 자동 감지만 한 상태라 사용자가 아직 신고 대행을 요청한 것으로 보지 않는다.
+  // requested = 사용자가 요청만 한 상태(취소 가능). pending/resolved/rejected = admin 처리 시작 → 취소 불가.
   const { reportedSourceIds, riskReportBySourceId, processedSourceIds } = useMemo(() => {
     const ids = new Set<string>();
     const map = new Map<string, string>();
     const processed = new Set<string>();
     for (const rr of riskReports ?? []) {
+      if (rr.status === 'detected') continue;
       ids.add(rr.source_id);
       map.set(rr.source_id, rr.id);
       if (rr.status !== 'requested') processed.add(rr.source_id);
@@ -116,10 +116,12 @@ export default function CrisisCenterPage() {
     return { reportedSourceIds: ids, riskReportBySourceId: map, processedSourceIds: processed };
   }, [riskReports]);
 
-  // 리스크 콘텐츠 처리 결과: 신고 등록 이후 모든 단계
-  // (requested 요청 완료 / pending 결과 대기 / resolved 삭제 완료 / rejected 삭제 반려)
+  // 리스크 콘텐츠 처리 결과: 신고 등록 이후 모든 단계만 노출.
+  // detected 는 관리자 리스크 관리용 자동 감지 상태라 고객의 신고 요청/처리 결과로 보지 않는다.
+  // (requested 요청 완료 / pending 삭제 처리 중 / resolved 삭제 완료 / rejected 삭제 불가)
   const processedReports = useMemo(() => {
     return (riskReports ?? [])
+      .filter((rr) => rr.status !== 'detected')
       .slice()
       .sort((a, b) =>
         (b.resolved_at ?? b.requested_at ?? '').localeCompare(a.resolved_at ?? a.requested_at ?? '')
@@ -131,7 +133,7 @@ export default function CrisisCenterPage() {
   return (
     <div className="bg-white">
       <div className="mx-auto w-full max-w-[1240px] px-4 lg:px-10 py-6 lg:py-10 flex flex-col gap-6">
-        <CrisisHeader companyName={workspace?.company_name} />
+        <CrisisHeader />
 
         {/* 탭 + 기간 필터 — 콘텐츠 컨트롤 한 줄 */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between border-b border-slate-200">

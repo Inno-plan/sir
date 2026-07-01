@@ -10,7 +10,7 @@ import {
   ShieldAlert,
   Users,
   Activity,
-  Database,
+  MessageCircle,
   Settings,
   LogOut,
   ChevronLeft,
@@ -37,7 +37,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: '리스크 관리', href: '/risk-reports', icon: ShieldAlert },
   { label: '유저 관리', href: '/users', icon: Users, roles: ['super_admin'] },
   { label: '모니터링', href: '/ops', icon: Activity, roles: ['super_admin'] },
-  { label: '크롤 히스토리', href: '/crawl-history', icon: Database, roles: ['super_admin'] },
+  { label: '고객 지원', href: '/support', icon: MessageCircle },
   { label: '설정', href: '#', icon: Settings, disabled: true },
 ];
 

@@ -39,6 +39,9 @@ export function RiskContent({ workspaceId, reportId, editable = false, allowRepo
     const map = new Map<string, string>();
     const processed = new Set<string>();
     for (const rr of riskReports) {
+      // detected 는 관리자 리스크 관리용 자동 감지 상태이며,
+      // 사용자가 신고 대행을 요청한 상태로 보지 않는다.
+      if (rr.status === 'detected') continue;
       ids.add(rr.source_id);
       map.set(rr.source_id, rr.id);
       if (rr.status !== 'requested') processed.add(rr.source_id);

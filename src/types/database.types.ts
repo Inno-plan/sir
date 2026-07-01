@@ -1229,6 +1229,73 @@ export type Database = {
           },
         ]
       }
+      support_inquiries: {
+        Row: {
+          answer_content: string | null
+          answered_at: string | null
+          answered_by: string | null
+          category: string
+          content: string
+          created_at: string
+          id: string
+          requester_id: string
+          status: string
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          answer_content?: string | null
+          answered_at?: string | null
+          answered_by?: string | null
+          category: string
+          content: string
+          created_at?: string
+          id?: string
+          requester_id?: string
+          status?: string
+          title: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          answer_content?: string | null
+          answered_at?: string | null
+          answered_by?: string | null
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          requester_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_inquiries_answered_by_fkey"
+            columns: ["answered_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_inquiries_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_inquiries_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_profiles: {
         Row: {
           avatar_url: string | null
@@ -1420,6 +1487,29 @@ export type Database = {
     }
     Functions: {
       _assert_admin_for_subscriptions: { Args: never; Returns: undefined }
+      answer_support_inquiry: {
+        Args: { p_answer_content: string; p_inquiry_id: string }
+        Returns: {
+          answer_content: string | null
+          answered_at: string | null
+          answered_by: string | null
+          category: string
+          content: string
+          created_at: string
+          id: string
+          requester_id: string
+          status: string
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "support_inquiries"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       auto_reject_stale_risk_reports: { Args: never; Returns: Json }
       can_read_workspace: { Args: { ws_id: string }; Returns: boolean }
       cancel_subscription: {
@@ -1504,6 +1594,10 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
+      is_support_admin_for_workspace: {
+        Args: { ws_id: string }
+        Returns: boolean
+      }
       pause_subscription: {
         Args: { p_pause_at?: string; p_workspace_id: string }
         Returns: string
