@@ -40,6 +40,17 @@ import type {
 
 const supabase = createClient();
 
+async function readRouteError(res: Response, fallback: string): Promise<string> {
+  try {
+    const body = await res.json() as { detail?: unknown; error?: unknown };
+    if (typeof body.detail === 'string' && body.detail.trim()) return body.detail;
+    if (typeof body.error === 'string' && body.error.trim()) return body.error;
+  } catch {
+    // non-JSON error body — fall through to fallback
+  }
+  return fallback;
+}
+
 // ── PostgREST 페이지네이션 헬퍼 ──
 // PostgREST 기본 Range 는 0-999 (1000건 상한). 대용량 워크스페이스 initial 등에서
 // 잘리지 않도록 range + while 루프로 전체 조회.
@@ -1255,15 +1266,6 @@ export async function deleteRiskReport(id: string): Promise<void> {
   if (error) throw error;
 }
 
-// 신고 대상 아이템의 platform_id → risk_reports.source_table
-const RISK_SOURCE_TABLE: Record<string, string> = {
-  naver_news: 'news_items',
-  naver_blog: 'sns_items',
-  youtube: 'sns_items',
-  naver_stock: 'community_items',
-  dcinside: 'community_items',
-};
-
 export interface SubmitRiskReportInput {
   workspaceId: string;
   reportId: string;
@@ -1285,21 +1287,25 @@ export async function submitRiskReport(input: SubmitRiskReportInput): Promise<vo
     fileUrls.push(path);
   }
 
-  const { error } = await supabase.from('risk_reports').insert({
-    workspace_id: workspaceId,
-    report_id: reportId,
-    source_table: RISK_SOURCE_TABLE[item.platform_id] ?? 'community_items',
-    source_id: item.id,
-    platform_id: item.platform_id,
-    title: item.title,
-    link: item.link,
-    critical_type: item.critical_type,
-    reason,
-    evidence,
-    file_urls: fileUrls,
-    status: 'requested',
+  const res = await fetch('/api/risk-report/request', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      workspace_id: workspaceId,
+      report_id: reportId,
+      source_id: item.id,
+      platform_id: item.platform_id,
+      reason,
+      evidence,
+      file_urls: fileUrls,
+    }),
   });
-  if (error) throw error;
+  if (!res.ok) {
+    if (fileUrls.length > 0) {
+      await supabase.storage.from('risk-attachments').remove(fileUrls).catch(() => undefined);
+    }
+    throw new Error(await readRouteError(res, '신고 대행 요청 실패'));
+  }
 }
 
 
@@ -1307,18 +1313,14 @@ export async function updateRiskReport(
   id: string,
   body: { status?: string; admin_note?: string }
 ): Promise<void> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/risk-report/${id}`, {
+  const res = await fetch(`/api/risk-report/${id}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
-      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
     },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error('상태 업데이트 실패');
+  if (!res.ok) throw new Error(await readRouteError(res, '상태 업데이트 실패'));
 }
 
 // ── 대응 전략 수정 ──
