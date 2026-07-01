@@ -5,7 +5,7 @@ import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigat
 import { useQuery } from '@tanstack/react-query';
 import { useDeleteRiskReport, useMarkRiskNoticeRead } from '@/hooks/report/useReportMutation';
 import { useRiskItemSummary, useRiskItems, useRiskReports } from '@/hooks/report/useReportQuery';
-import { useReports, useWorkspace, useWorkspaceSubscription } from '@/hooks/workspace/useWorkspaceQuery';
+import { useReports, useWorkspaceSubscription } from '@/hooks/workspace/useWorkspaceQuery';
 import { createClient } from '@/lib/supabase/client';
 import { Loading } from '@/components/ui/Loading';
 import { Tooltip } from '@/components/ui/Tooltip';
@@ -60,7 +60,6 @@ export default function CrisisCenterPage() {
   const router = useRouter();
   const workspaceId = params?.workspaceId as string;
 
-  const { data: workspace } = useWorkspace(workspaceId);
   const { data: subscription, isLoading: subLoading } = useWorkspaceSubscription(workspaceId);
   const hasArmor = subscription?.has_armor ?? false;
   const armorReady = !subLoading && subscription !== undefined;
@@ -102,7 +101,6 @@ export default function CrisisCenterPage() {
   }, [reportsList]);
   const deleteMutation = useDeleteRiskReport(workspaceId);
 
-
   // detected = AI가 자동 감지만 한 상태라 사용자가 아직 신고 대행을 요청한 것으로 보지 않는다.
   // requested = 사용자가 요청만 한 상태(취소 가능). pending/resolved/rejected = admin 처리 시작 → 취소 불가.
   const { reportedSourceIds, riskReportBySourceId, processedSourceIds } = useMemo(() => {
@@ -135,7 +133,7 @@ export default function CrisisCenterPage() {
   return (
     <div className="bg-white">
       <div className="mx-auto w-full max-w-[1240px] px-4 lg:px-10 py-6 lg:py-10 flex flex-col gap-6">
-        <CrisisHeader companyName={workspace?.company_name} />
+        <CrisisHeader />
 
         {/* 탭 + 기간 필터 — 콘텐츠 컨트롤 한 줄 */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between border-b border-slate-200">

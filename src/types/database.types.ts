@@ -708,6 +708,42 @@ export type Database = {
           },
         ]
       }
+      risk_notice_reads: {
+        Row: {
+          latest_seen_risk_at: string
+          profile_id: string
+          seen_at: string
+          workspace_id: string
+        }
+        Insert: {
+          latest_seen_risk_at: string
+          profile_id: string
+          seen_at?: string
+          workspace_id: string
+        }
+        Update: {
+          latest_seen_risk_at?: string
+          profile_id?: string
+          seen_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "risk_notice_reads_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "risk_notice_reads_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       risk_reports: {
         Row: {
           admin_note: string | null
@@ -1172,6 +1208,73 @@ export type Database = {
           },
         ]
       }
+      support_inquiries: {
+        Row: {
+          answer_content: string | null
+          answered_at: string | null
+          answered_by: string | null
+          category: string
+          content: string
+          created_at: string
+          id: string
+          requester_id: string
+          status: string
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          answer_content?: string | null
+          answered_at?: string | null
+          answered_by?: string | null
+          category: string
+          content: string
+          created_at?: string
+          id?: string
+          requester_id?: string
+          status?: string
+          title: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          answer_content?: string | null
+          answered_at?: string | null
+          answered_by?: string | null
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          requester_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_inquiries_answered_by_fkey"
+            columns: ["answered_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_inquiries_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_inquiries_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_profiles: {
         Row: {
           avatar_url: string | null
@@ -1363,6 +1466,29 @@ export type Database = {
     }
     Functions: {
       _assert_admin_for_subscriptions: { Args: never; Returns: undefined }
+      answer_support_inquiry: {
+        Args: { p_answer_content: string; p_inquiry_id: string }
+        Returns: {
+          answer_content: string | null
+          answered_at: string | null
+          answered_by: string | null
+          category: string
+          content: string
+          created_at: string
+          id: string
+          requester_id: string
+          status: string
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "support_inquiries"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       auto_reject_stale_risk_reports: { Args: never; Returns: Json }
       can_read_workspace: { Args: { ws_id: string }; Returns: boolean }
       cancel_subscription: {
@@ -1378,6 +1504,7 @@ export type Database = {
         Returns: string
       }
       charge_monthly_ai_tokens: { Args: never; Returns: number }
+      cleanup_analyzed_content: { Args: never; Returns: undefined }
       cleanup_zombie_pipeline_state: { Args: never; Returns: Json }
       correct_subscription: {
         Args: {
@@ -1414,13 +1541,13 @@ export type Database = {
         Args: { p_amount: number; p_workspace_id: string }
         Returns: number
       }
-      delete_sns_items_by_links: {
-        Args: { p_links: string[]; p_session_id: string }
-        Returns: number
-      }
       delete_scheduled_subscription: {
         Args: { p_subscription_id: string }
         Returns: string
+      }
+      delete_sns_items_by_links: {
+        Args: { p_links: string[]; p_session_id: string }
+        Returns: number
       }
       extend_subscription: {
         Args: { p_new_ended_at: string; p_workspace_id: string }
@@ -1438,8 +1565,18 @@ export type Database = {
           workspace_id: string
         }[]
       }
+      initialized_workspaces: {
+        Args: { ws_ids: string[] }
+        Returns: {
+          workspace_id: string
+        }[]
+      }
       is_admin: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
+      is_support_admin_for_workspace: {
+        Args: { ws_id: string }
+        Returns: boolean
+      }
       pause_subscription: {
         Args: { p_pause_at?: string; p_workspace_id: string }
         Returns: string
