@@ -1,7 +1,7 @@
-# sir-frontend Route/API/Hook Matrix — pass 2
+# sir-frontend Route/API/Hook Matrix — pass 3
 
 작성일: 2026-06-25
-상태: 2차 탐색 기반 + P0.2 PDF 개선 + 2026-06-30 body-validation/external-timeout/dead-code remediation 반영본.
+상태: 2차 탐색 기반 + P0.2 PDF 개선 + 2026-07-02 main merge 이후 support/risk-report route 및 crawl-history 제거 반영본.
 
 ## 1. Next route handler authorization matrix
 
@@ -19,6 +19,8 @@
 | `src/app/api/monitoring/ai-analysis/route.ts` | POST | Requires incoming `Authorization` header | Delegated to backend | No | Yes | Delegated to backend | Uses shared proxy helper with 30s timeout and normalized 502/504 errors. AI analysis generation, token charge, and workspace validation happen in backend. |
 | `src/app/api/monitoring/ai-analysis/latest/route.ts` | GET | Requires incoming `Authorization` header | Delegated to backend | No | Yes | `workspace_id` required locally; membership delegated to backend | Uses shared proxy helper with 30s timeout, normalized 502/504 errors, and `cache: no-store`. |
 | `src/app/api/monitoring/search-trend/route.ts` | POST | Supabase SSR `auth.getUser()` | No role check | Yes for cache | No | RLS-backed `workspaces` select before service-role cache | Validates JSON body, calls Naver DataLab with timeout, degrades to stale cache, and normalizes upstream timeout/failure errors. |
+| `src/app/api/risk-report/[id]/route.ts` | PATCH | Supabase SSR `auth.getUser()` | admin/super_admin; admin must be workspace member | Yes | No | risk report row → workspace membership for admin | Validates JSON body, status enum, and `admin_note`; resolved/rejected removes storage attachments before update. |
+| `src/app/api/risk-report/request/route.ts` | POST | Supabase SSR `auth.getUser()` | super_admin or workspace member | Yes | No | body workspace/report/source/session cross-check | Validates body shape, platform→source table, attachment path prefix, active armor subscription, report↔workspace, source↔workspace/platform/session/report, and duplicate request status. |
 | `src/app/auth/callback/route.ts` | GET | Supabase auth callback/token hash | N/A | No | No | N/A | Exchanges code/OTP then redirects. |
 
 ### Observations
@@ -29,6 +31,8 @@
 - Evidence: static import search was used for API-module consumer mapping; dynamic imports/runtime-only consumers remain possible.
 - Evidence: dead report-create UI path was removed: `CreateReportButton`, `useCreateReport`, and stale frontend `createReport(workspaceId)` have no remaining `src` references.
 - Evidence: high-risk service-role write routes now validate role/tier/date/token numeric body values before invoking service-role auth/RPC/update calls.
+- Evidence: main merge added risk-report route handlers. `request` performs body/source/report/workspace checks before service-role writes; `[id]` restricts mutation to admin/super_admin and validates the status/admin-note patch.
+- Evidence: main merge removed the crawl-history page/API/hook surface and added Supabase-direct support inquiry surfaces.
 - Evidence: `platformApi.ts` and `types/platform.ts` have no active `src` consumers outside their own import pair; active workspace/report flows use hardcoded platform constants/mappings in `workspaceApi.ts`, `utils/workspace.ts`, `monitoringApi.ts`, and `reportApi.ts`.
 - Inference: service-role routes are not uniformly unsafe, but this matrix should be kept current whenever adding new `src/app/api/**` handlers.
 
@@ -37,7 +41,6 @@
 | Module | Primary access pattern | Key exports / responsibilities | Hook consumers observed |
 |---|---|---|---|
 | `blacklistApi.ts` | Supabase direct + backend `/api/blacklist` for Naver blogger hash insert | blogger/youtube blacklist reads/writes | `components/workspace/detail/BlacklistModal.tsx`, `hooks/blacklist/useBlacklistMutation.ts`, `hooks/blacklist/useBlacklistQuery.ts` |
-| `crawlHistoryApi.ts` | Supabase direct + backend `/api/admin/config/retention` | crawl item/session history, retention mode | `app/(app)/crawl-history/CrawlHistoryClient.tsx`, `hooks/crawlHistory/crawlHistoryKeys.ts`, `hooks/crawlHistory/useCrawlHistoryQuery.ts` |
 | `krxApi.ts` | Next `/api/companies` | KRX company search | `components/ui/CompanySearch.tsx` |
 | `monitoringApi.ts` | Supabase direct + Next monitoring routes | daily/stock/risk/channel matrix/search/AI/history/token/day items | `hooks/monitoring/*`, `hooks/report/useReportQuery.ts`, client monitoring/insights pages, monitoring chart components |
 | `newsApi.ts` | Supabase direct | cluster item lookup | `hooks/crawl/useCrawlQuery.ts` |
@@ -47,6 +50,7 @@
 | `reportApi.ts` | Supabase direct + backend/Next mutation endpoints | report info, summary, channel/risk data, risk reports, publish/retry/regenerate, typed Supabase crisis read-state; stale frontend `createReport(workspaceId)` helper removed | `hooks/report/*`, `hooks/crawl/useStockQuery.ts`, `hooks/workspace/useWorkspaceMutation.ts`, report/risk/ops pages and chart components |
 | `sessionApi.ts` | Supabase direct | sessions by workspace/detail/date | `hooks/crawl/useSessionQuery.ts` |
 | `subscriptionApi.ts` | Supabase direct RPCs | subscription lifecycle mutations | `lib/subscription.ts`, `lib/api/userApi.ts`, `hooks/subscription/*`, workspace/user admin components |
+| `supportApi.ts` | Supabase direct + RPC | support inquiry list/create/answer, category/status normalization | `hooks/support/*`, `components/support/*`, `(app)/support`, `(client)/support/[workspaceId]` |
 | `userApi.ts` | Supabase direct + Next admin route handlers | users, details, tokens, create/reset, role/workspace assignment | `hooks/user/*`, user admin components |
 | `workspaceApi.ts` | Supabase direct | workspace list/detail/profile/reports/progress | `hooks/workspace/*`, workspace/report/client pages and components |
 | `workspaceApi.server.ts` | Supabase SSR direct | server-side workspace lookup | `app/(app)/workspace/[workspaceId]/page.tsx` |
@@ -63,13 +67,14 @@
 | `hooks/workspace/useWorkspaceMutation.ts` | `workspaceApi`, `reportApi` | Invalidates workspace profile/progress/reports after profile/retry/regenerate mutations. |
 | `hooks/user/*` | `userApi` | Invalidates users/details/members/workspace tokens/workspace list after admin user mutations. |
 | `hooks/subscription/*` | `subscriptionApi` | Invalidates workspace subscription and detailed users after subscription changes. |
+| `hooks/support/*` | `supportApi` | Lists workspace/admin support inquiries, creates client inquiry rows, and answers via `answer_support_inquiry` RPC. |
 | `hooks/blacklist/*` | `blacklistApi` | Invalidates blogger count / youtube keywords after mutations. |
 | `hooks/crawl*` | `newsApi`, `pipelineApi`, `sessionApi`, `reportApi` | Pipeline mutation invalidates workspace reports/progress. |
 
 ## 4. Follow-up gaps
 
 - `platformApi.ts` / `types/platform.ts` are classified as legacy/reserved, not removed: runtime impact is negligible because they are not imported by active code; revisit only if rebuilding platform-selection UI or doing a deliberate deletion pass that removes both together.
-- Continue route handler body validation matrix for lower-risk/proxy routes: schema/no schema, numeric bounds, enum checks, and consistent error envelope.
+- Continue route handler body validation matrix for lower-risk/proxy routes: schema/no schema, numeric bounds, enum checks, and consistent error envelope. After the 2026-07-02 main merge, `risk-report/request` and `risk-report/[id]` are documented; remaining obvious candidates are older admin helpers such as `publish-report`, `clear-critical`, `reset-password`, and workspace-token overview.
 - Client route policy is confirmed: `user` is blocked from admin shell, while admin/super_admin client-page preview/support access must be preserved.
 - Continue only long-tail timeout/retry behavior review; monitoring AI, KRX company search, and Naver DataLab search-trend route families now have bounded fetch/error normalization.
 
