@@ -47,7 +47,7 @@
 | `opsApi.ts` | backend `/api/ops/queue`, `/api/sessions/{id}/retry` | ops queue and retry | `app/(app)/ops/OpsClient.tsx` |
 | `pipelineApi.ts` | backend `/api/pipeline/all` | pipeline trigger | `hooks/crawl/usePipelineMutation.ts` |
 | `platformApi.ts` | Supabase direct | workspace platform CRUD | No active consumers found by static import/search; classified as legacy/reserved for a possible future platform-selection UI |
-| `reportApi.ts` | Supabase direct + backend/Next mutation endpoints | report info, summary, channel/risk data, risk reports, publish/retry/regenerate, typed Supabase crisis read-state; stale frontend `createReport(workspaceId)` helper removed | `hooks/report/*`, `hooks/crawl/useStockQuery.ts`, `hooks/workspace/useWorkspaceMutation.ts`, report/risk/ops pages and chart components |
+| `reportApi.ts` | Supabase direct + backend/Next mutation endpoints | report info, summary, channel/risk data, risk reports, publish/retry/regenerate, typed Supabase crisis read-state; report info/summary/strategy data boundaries are unit-tested; stale frontend `createReport(workspaceId)` helper removed | `hooks/report/*`, `hooks/crawl/useStockQuery.ts`, `hooks/workspace/useWorkspaceMutation.ts`, report/risk/ops pages and chart components |
 | `sessionApi.ts` | Supabase direct | sessions by workspace/detail/date | `hooks/crawl/useSessionQuery.ts` |
 | `subscriptionApi.ts` | Supabase direct RPCs | subscription lifecycle mutations | `lib/subscription.ts`, `lib/api/userApi.ts`, `hooks/subscription/*`, workspace/user admin components |
 | `supportApi.ts` | Supabase direct + RPC | support inquiry list/create/answer, category/status normalization | `hooks/support/*`, `components/support/*`, `(app)/support`, `(client)/support/[workspaceId]` |
@@ -59,8 +59,8 @@
 
 | Hook group | API module(s) | Query/mutation notes |
 |---|---|---|
-| `hooks/report/useReportQuery.ts` | `reportApi`, `workspaceApi`, `monitoringApi` | Large report data surface; report key prefixes intentionally support broad invalidation for risk reports and summaries. |
-| `hooks/report/useReportMutation.ts` | `reportApi` | Uses optimistic update for summary/strategies; invalidates report/workspace/risk notice/risk report caches after mutations. `useMarkRiskNoticeRead` invalidation is unit-tested. Legacy `useCreateReport` hook removed with its unused button. |
+| `hooks/report/useReportQuery.ts` | `reportApi`, `workspaceApi`, `monitoringApi` | Large report data surface; report key prefixes intentionally support broad invalidation for risk reports and summaries. Core report query keys/enabled gates/queryFn args are unit-tested. |
+| `hooks/report/useReportMutation.ts` | `reportApi` | Uses optimistic update for summary/strategies; invalidates report/workspace/risk notice/risk report caches after mutations. Publish, summary/strategy optimistic updates, and `useMarkRiskNoticeRead` invalidation are unit-tested. Legacy `useCreateReport` hook removed with its unused button. |
 | `hooks/monitoring/useMonitoringQuery.ts` | `monitoringApi` | Daily/stock/risk/channel/AI/history/token/day item queries. |
 | `hooks/monitoring/useMonitoringMutation.ts` | `monitoringApi` | On AI analysis success, sets latest analysis cache and invalidates estimate/token/history. |
 | `hooks/workspace/useWorkspaceQuery.ts` | `workspaceApi`, `subscriptionApi`, Supabase realtime | Uses Realtime channel for sessions/reports/session_strategies changes to invalidate progress/reports. |
