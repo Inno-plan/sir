@@ -71,7 +71,16 @@
 | `hooks/blacklist/*` | `blacklistApi` | Invalidates blogger count / youtube keywords after mutations. |
 | `hooks/crawl*` | `newsApi`, `pipelineApi`, `sessionApi`, `reportApi` | Pipeline mutation invalidates workspace reports/progress. |
 
-## 4. Follow-up gaps
+## 4. Report component test map
+
+| Surface | Test notes |
+|---|---|
+| `components/report/ReportHeader.tsx` | Server-render tests cover report-type label copy, period formatting, company/ticker output, and optional report link. |
+| `components/report/highlight/SummaryAccordion.tsx` | Server-render tests cover collapsed interactive summaries and expanded PDF-mode subsections. |
+| `components/report/strategy/StrategyCard.tsx` | Server-render tests cover collapsed interactive strategy summary and expanded PDF-mode strategy details. |
+| `components/report/risk-content/RiskTable.tsx` | Server-render tests cover empty-state and PDF row-limit summary copy with mutation/modal dependencies mocked. |
+
+## 5. Follow-up gaps
 
 - `platformApi.ts` / `types/platform.ts` are classified as legacy/reserved, not removed: runtime impact is negligible because they are not imported by active code; revisit only if rebuilding platform-selection UI or doing a deliberate deletion pass that removes both together.
 - Continue route handler body validation matrix for lower-risk/proxy routes: schema/no schema, numeric bounds, enum checks, and consistent error envelope. After the 2026-07-02 main merge, admin helper pass, and Vitest expansion, `risk-report/request`, `risk-report/[id]`, `publish-report`, `clear-critical`, `reset-password`, workspace-token mutation, and `search-trend` RLS-before-service-role boundary are documented with explicit guards/tests; admin auth gates plus admin/risk-report/search-trend invalid paths have unit coverage. Remaining work is lower-risk/proxy route consistency and browser e2e coverage.
