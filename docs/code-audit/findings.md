@@ -14,7 +14,7 @@
 | 4 | Environment secret handling | `.env.local`에 실제 secret이 로컬 평문으로 존재한다. git에는 ignore되지만 로컬/협업/캡처 유출 위험은 남는다. | Low/Process | High | `.env.local` key names, `.gitignore:16` ignores `*.local`, `git ls-files` shows not tracked |
 | 5 | Error/network resilience | monitoring AI backend proxy, KRX company search, and Naver DataLab search-trend routes now use bounded fetches and normalized upstream failure responses. Remaining work is broader retry/circuit-breaker policy, not an unbounded-fetch gap in these route families. | Resolved major frontend routes / Low remaining | High | `src/app/api/monitoring/ai-analysis/_proxy.ts`; `src/app/api/monitoring/ai-analysis/**/route.ts`; `src/app/api/companies/route.ts`; `src/app/api/monitoring/search-trend/route.ts` |
 | 6 | Type drift | `risk_notice_reads` generated 타입을 반영했고, crisis read-state 조회/저장을 raw PostgREST fetch에서 typed Supabase client select/upsert로 전환했다. | Resolved / Low remaining | High | `src/types/database.types.ts` `risk_notice_reads`; `src/lib/api/reportApi.ts` `getRiskNoticeRead` / `markRiskNoticeRead`; user-provided `pg_policies` result 2026-06-29 |
-| 7 | Test surface | `typecheck` script는 추가됐지만, 공식 `test`/`e2e` script와 test runner config는 아직 없다. repo-local `test*.mjs`는 live/operational script 성격이다. | Medium | High | `package.json`; `find` test/config scan; `scripts/test-*.mjs` inventory |
+| 7 | Test surface | Vitest 기반 `test` script와 route handler 단위 테스트가 추가됐다. e2e/Playwright는 아직 없고 repo-local `test*.mjs`는 live/operational script 성격이다. | Low/Medium | High | `package.json`; `vitest.config.ts`; `src/app/api/admin/admin-route-validation.test.ts`; `scripts/test-*.mjs` inventory |
 | 8 | Lint/config | Phase 1A에서 `scripts/**/*.mjs` Node globals override를 추가해 repo-level `npm run lint`가 통과한다. 기존 app-source warnings 13건은 남아 있다. | Resolved/Low | High | `eslint.config.js:13-19`; `npm run lint` |
 | 9 | Dependency vulnerabilities | Phase 1A에서 production audit는 0건으로 정리됐다. Legacy `jspdf`/`jspdf-autotable` dead path를 제거했고, `next`/`lodash`/`ws`/Next nested `postcss`를 lockfile/override로 보정했다. Dev-only audit 취약점은 별도 후속이다. | Resolved for prod / Dev risk remains | High | `package.json`, `package-lock.json`; `src/components/pipeline/ReportResult.tsx`; deleted `src/utils/reportPdf.ts`; `npm audit --omit=dev --audit-level=moderate` |
 | 10 | Route param consistency | Phase 2에서 client report/PDF entry와 PDF metadata/API handoff가 `reports.id` + `workspace_id` 조합을 검증하도록 강화됐다. 남은 표면은 내부 helper가 `reportId`로 meta/session을 캐시하는 구조를 계속 entry guard 뒤에서만 쓰도록 유지하는 것이다. | Resolved major path / Low remaining | High | `src/lib/api/reportApi.ts:194-200`; `src/app/(client)/report/[workspaceId]/[reportId]/page.tsx:76-112`; `src/app/report-pdf/[workspaceId]/[reportId]/page.tsx:129-137`; `src/components/client/sidebar/PdfDownloadButton.tsx:99-118`, `:161-167` |
@@ -88,11 +88,13 @@ Inference: the schema/type drift and raw PostgREST escape are resolved for the c
 
 ### F7. Test surface gap
 
-- Evidence: `package.json` now has `typecheck: tsc --noEmit`, but still has no `test` or `e2e` script.
-- Evidence: no `vitest.config.*`, `jest.config.*`, or `playwright.config.*` was found in this pass.
+- Evidence: `package.json` now has `test: vitest run` and `typecheck: tsc --noEmit`.
+- Evidence: `vitest.config.ts` configures a Node test environment and the `@` → `src` alias for route-handler unit tests.
+- Evidence: `src/app/api/admin/admin-route-validation.test.ts` covers invalid JSON, non-object body, missing/non-string fields, and unknown platform/password policy validation for `publish-report`, `clear-critical`, and `reset-password`; invalid bodies assert that the service-role client is not created.
+- Evidence: no `e2e` script or `playwright.config.*` was found in this pass.
 - Evidence: repo-local test-like files are `scripts/test-dknd-e2e.mjs`, `scripts/test-future-sub.mjs`, `scripts/test-grace-cron.mjs`, and `scripts/test-rpc-double-click.mjs`.
 
-Inference: current frontend verification relies on build/lint/manual QA and operational scripts, not CI-safe unit/e2e tests. High-value missing tests include route auth boundaries, report/PDF rendering, risk NEW read-state cache invalidation, and admin route handler role gates.
+Inference: CI-safe frontend unit coverage has started for admin route body validation. High-value missing tests still include route auth boundaries, report/PDF rendering, risk NEW read-state cache invalidation, and e2e coverage for live auth/session/browser/backend flows.
 
 ### F8. Repo-level lint mismatch — Phase 1A resolved
 
@@ -145,7 +147,7 @@ Inference: admin/super_admin access to client routes is intended support/preview
 
 ### F13. Cross-repo smoke gap → manual runbook
 
-- Evidence: `package.json` now has `typecheck: tsc --noEmit`, but still has no `test` or `e2e` script.
+- Evidence: `package.json` now has `test: vitest run` and `typecheck: tsc --noEmit`, but still has no `e2e` script.
 - Evidence: backend `tests/test_pdf_preflight.py` and `tests/test_pdf_service.py` cover preflight and token-free navigation only.
 - Evidence: `docs/code-audit/pdf-smoke-runbook.md` now records manual smoke scenarios for valid PDF render, mismatch, token expiry, role policy, and token/log redaction.
 
@@ -162,7 +164,7 @@ Inference: the files are safe-looking deletion candidates, but deletion is defer
 
 1. Continue route-handler body validation matrix for remaining lower-risk/proxy `src/app/api/**/route.ts` paths (schema/no schema, numeric bounds, enum checks, error shape); high-risk admin mutation bodies and risk-report routes now have explicit guards.
 2. Review only long-tail external/backend fetches for retry/circuit-breaker policy; monitoring AI, KRX, and Naver DataLab route families now have timeout/error normalization.
-3. Add CI-safe `test`/`e2e` scripts when a runner exists; `typecheck` is now explicit and live/operational smoke scripts should remain behind env guards.
+3. Extend CI-safe Vitest coverage for route auth/validation and add `e2e` only when a browser runner/test auth fixture exists; live/operational smoke scripts should remain behind env guards.
 4. Manually verify the client crisis NEW badge/read-state flow in local dev or staging after auth/UI changes.
 5. Triage remaining dev-only `npm audit` findings (`@babel/core`, `brace-expansion`, `flatted`, `js-yaml`, `picomatch`, dev `postcss`) separately from production audit closure.
 6. Add high-value tests for route auth, report/PDF render, risk NEW read-state invalidation, and admin route handler role gates.
