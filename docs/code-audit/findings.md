@@ -81,10 +81,13 @@ Inference: the main frontend external/backend route handlers no longer rely on u
 - Evidence: the 2026-06-30 typegen also synced live schema drift for `app_settings`, `community_items.summary`, and additional RPC signatures.
 - Evidence: `src/lib/api/reportApi.ts` now uses typed Supabase `.from('risk_notice_reads').select(...).maybeSingle()` for read-state lookup and `.upsert(..., { onConflict: 'profile_id,workspace_id' })` for read-state saves.
 - Evidence: the existing guard that only `role='user'` can mutate crisis read-state is preserved before upsert; admin/super_admin preview visits still do not mark client read-state.
+- Evidence: `src/lib/api/reportApi.riskNotice.test.ts` covers no-session read/write no-ops, authenticated typed lookup, user-only upsert payload/onConflict, and read/upsert error propagation for crisis read-state.
+- Evidence: `src/hooks/report/useReportMutation.test.ts` covers `useMarkRiskNoticeRead` mutation wiring and invalidation of `reportKeys.riskNoticeRead(workspaceId)`.
+- Evidence: `src/components/client/sidebar/riskNoticeBadge.ts` plus `SidebarMainNav.test.ts` cover the NEW badge timestamp comparison, missing read-state, and invalid timestamp boundaries.
 - Verification: `SUPABASE_CHECK_UPDATE=false supabase gen types typescript --project-id uggbeedbspbypvousmwi --schema public` completed successfully with Supabase CLI 2.90.0 during typegen, then typed client conversion passed frontend typecheck/lint.
 - Live policy confirmation supplied by user on 2026-06-29: `risk_notice_reads_select_own_user`, `insert_own_user`, and `update_own_user` policies exist for authenticated `role='user'` workspace members only.
 
-Inference: the schema/type drift and raw PostgREST escape are resolved for the crisis read-state path. Remaining risk is ordinary manual UI verification of the NEW badge/read-state behavior in local dev or staging; no live mutation smoke was run during remediation.
+Inference: the schema/type drift and raw PostgREST escape are resolved for the crisis read-state path, and CI-safe unit tests now cover the core read/write/cache invalidation/NEW comparison behavior. Remaining risk is ordinary manual UI verification of the NEW badge/read-state behavior in local dev or staging; no live mutation smoke was run during remediation.
 
 ### F7. Test surface gap
 
@@ -93,11 +96,12 @@ Inference: the schema/type drift and raw PostgREST escape are resolved for the c
 - Evidence: `src/app/api/admin/admin-route-validation.test.ts` covers unauthenticated/forbidden auth gates across admin helpers and invalid JSON/non-object/missing/non-string body validation for `publish-report`, `clear-critical`, and `reset-password`; invalid/unauthorized paths assert that the service-role client is not created.
 - Evidence: `src/app/api/risk-report/risk-report-route-validation.test.ts` covers `risk-report/request` unauthenticated/body validation paths before service-role client creation and `risk-report/[id]` auth/membership/status/admin-note validation paths without updating rows or removing attachments.
 - Evidence: `src/app/api/monitoring/search-trend/search-trend-route-boundary.test.ts` covers unauthenticated/body/RLS-invisible workspace/workspace lookup/company-name failure paths and asserts service-role cache client plus Naver fetch are not reached before the RLS-backed workspace check passes.
+- Evidence: `src/lib/api/reportApi.riskNotice.test.ts`, `src/hooks/report/useReportMutation.test.ts`, and `src/components/client/sidebar/SidebarMainNav.test.ts` cover the crisis NEW read-state API, cache invalidation hook, and badge timestamp helper without live Supabase/browser dependencies.
 - Evidence: `docs/code-audit/pdf-playwright-e2e-design.md` records the future Playwright fixture, artifact, scenario, and CI gate design for PDF/auth browser coverage.
 - Evidence: no `e2e` script or `playwright.config.*` was found in this pass.
 - Evidence: repo-local test-like files are `scripts/test-dknd-e2e.mjs`, `scripts/test-future-sub.mjs`, `scripts/test-grace-cron.mjs`, and `scripts/test-rpc-double-click.mjs`.
 
-Inference: CI-safe frontend unit coverage now covers the highest-risk admin/risk-report route auth/body validation paths and the `search-trend` RLS-before-service-role boundary. High-value missing tests still include report/PDF rendering, risk NEW read-state cache invalidation, and e2e coverage for live auth/session/browser/backend flows.
+Inference: CI-safe frontend unit coverage now covers the highest-risk admin/risk-report route auth/body validation paths, the `search-trend` RLS-before-service-role boundary, and the crisis NEW read-state/cache invalidation helper flow. High-value missing tests still include report/PDF rendering and e2e coverage for live auth/session/browser/backend flows.
 
 ### F8. Repo-level lint mismatch — Phase 1A resolved
 
@@ -169,9 +173,9 @@ Inference: the files are safe-looking deletion candidates, but deletion is defer
 1. Continue route-handler body validation matrix for remaining lower-risk/proxy `src/app/api/**/route.ts` paths (schema/no schema, numeric bounds, enum checks, error shape); high-risk admin mutation bodies and risk-report routes now have explicit guards.
 2. Review only long-tail external/backend fetches for retry/circuit-breaker policy; monitoring AI, KRX, and Naver DataLab route families now have timeout/error normalization.
 3. Add `e2e` only when the Playwright auth fixture/test environment from `pdf-playwright-e2e-design.md` exists; live/operational smoke scripts should remain behind env guards.
-4. Manually verify the client crisis NEW badge/read-state flow in local dev or staging after auth/UI changes.
+4. Manually verify the client crisis NEW badge/read-state flow in local dev or staging after auth/UI changes; unit tests now cover the pure badge/read-state/cache invalidation logic.
 5. Triage remaining dev-only `npm audit` findings (`@babel/core`, `brace-expansion`, `flatted`, `js-yaml`, `picomatch`, dev `postcss`) separately from production audit closure.
-6. Add high-value tests for report/PDF render and risk NEW read-state invalidation.
+6. Add high-value tests for report/PDF render behavior.
 7. Run the manual cross-repo PDF smoke runbook after PDF/auth changes or before release.
 8. Preserve current policy that admin/super_admin can access client routes for preview/support.
 9. Keep removed dead report-create UI path out unless a future UI reintroduces explicit `type` and backend-aligned validation.
