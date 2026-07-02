@@ -133,11 +133,13 @@ Confidence: High.
 Inference: report 상세 데이터는 publish/regenerate 이후 명시 invalidation에 의존하고, 운영/위기 대응성 데이터는 짧은 staleTime 또는 realtime invalidation으로 freshness를 보강한다. 신규 mutation 추가 시 prefix key 설계와 `reportId`/period 변형 invalidation 누락 여부를 계속 matrix에 반영해야 한다.
 Confidence: High.
 
-## 9. Test and smoke surface — pass 4
+## 9. Test and smoke surface — pass 5
 
 - Evidence: `package.json:6-13` — `test: vitest run` and `typecheck: tsc --noEmit` are available; there is still no `e2e` script.
 - Evidence: `vitest.config.ts` — Node test environment and `@` alias are configured for hermetic route-handler unit tests.
-- Evidence: `src/app/api/admin/admin-route-validation.test.ts` — admin `publish-report`, `clear-critical`, and `reset-password` invalid body cases are covered without creating a service-role client.
+- Evidence: `src/app/api/admin/admin-route-validation.test.ts` — admin auth gates and `publish-report`, `clear-critical`, `reset-password` invalid body cases are covered without creating a service-role client.
+- Evidence: `src/app/api/risk-report/risk-report-route-validation.test.ts` — `risk-report/request` auth/body validation and `risk-report/[id]` auth/membership/status/admin-note validation are covered with service-role writes/removes blocked on invalid paths.
+- Evidence: `docs/code-audit/pdf-playwright-e2e-design.md` — PDF/auth Playwright e2e is designed but not installed; it requires stable auth storage-state fixtures and token-safe artifact policy.
 - Evidence: repo-local test-like files excluding `node_modules` are operational scripts: `scripts/test-dknd-e2e.mjs`, `scripts/test-future-sub.mjs`, `scripts/test-grace-cron.mjs`, `scripts/test-rpc-double-click.mjs`, plus inspection/seed scripts.
 - Evidence: no `playwright.config.*` found in this pass.
 - Evidence: `scripts/seed-test-user.mjs` and `scripts/test-*.mjs` names indicate live/operational verification style rather than hermetic app unit tests.
@@ -146,10 +148,10 @@ High-value regression candidates:
 1. Route/auth smoke: middleware/layout user/admin separation for `(app)` and `(client)` paths, support admin/client branching, plus `/report-pdf` token route behavior.
 2. Query/cache regression: `risk_notice_reads` NEW badge flow, risk report status invalidation, publish invalidation of workspace progress/detail.
 3. Report UI regression: PDF-mode risk table row limiting, report section navigation, channel/risk drawer open-only-when-data rules.
-4. API route handler regression: admin route role gates, risk-report request/update validation, and `search-trend` RLS-before-service-role cache path.
+4. API route handler regression: remaining `search-trend` RLS-before-service-role cache path and lower-risk/proxy route validation.
 5. Operational script safety: separate live Supabase smoke scripts from local CI tests and require explicit env guard for scripts that seed/mutate data.
 
-Inference: frontend now has a conventional hermetic unit-test surface for route handlers, while browser/full-stack e2e remains manual/live-script based. Future tests should continue separating CI-safe unit tests from live Supabase smoke/e2e scripts.
+Inference: frontend now has a conventional hermetic unit-test surface for high-risk route auth/body validation, while browser/full-stack e2e remains manual/live-script based until the PDF/auth fixture design is implemented. Future tests should continue separating CI-safe unit tests from live Supabase smoke/e2e scripts.
 Confidence: High.
 
 ## 10. Lint/typecheck/dependency verification — pass 3 + Phase 1A update

@@ -2,8 +2,11 @@ import type { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PASSWORD_POLICY_MESSAGE } from '@/lib/auth/passwordPolicy';
 import { POST as clearCriticalPost } from '@/app/api/admin/clear-critical/route';
+import { POST as createUserPost } from '@/app/api/admin/create-user/route';
 import { POST as publishReportPost } from '@/app/api/admin/publish-report/route';
 import { POST as resetPasswordPost } from '@/app/api/admin/reset-password/route';
+import { GET as workspaceTokensGet } from '@/app/api/admin/workspace-tokens/route';
+import { PATCH as workspaceTokensPatch } from '@/app/api/admin/workspace-tokens/[workspaceId]/route';
 
 const mocks = vi.hoisted(() => {
   const getUser = vi.fn();
@@ -53,8 +56,42 @@ type RouteCase = {
   post: RouteHandler;
   role: AdminRole;
 };
+type AuthGateCase = {
+  expectedDetail: string;
+  expectedStatus: 401 | 403;
+  name: string;
+  request?: NextRequest;
+  role?: AdminRole | 'user';
+  run: (request: NextRequest) => Promise<Response>;
+};
+
+function rejectUnauthenticated() {
+  mocks.getUser.mockResolvedValueOnce({
+    data: {
+      user: null,
+    },
+    error: null,
+  });
+}
 
 function authorizeAs(role: AdminRole) {
+  mocks.getUser.mockResolvedValueOnce({
+    data: {
+      user: {
+        id: 'caller-user-id',
+      },
+    },
+    error: null,
+  });
+  mocks.profileSingle.mockResolvedValueOnce({
+    data: {
+      role,
+    },
+    error: null,
+  });
+}
+
+function authorizeProfileAs(role: AdminRole | 'user') {
   mocks.getUser.mockResolvedValueOnce({
     data: {
       user: {
@@ -81,6 +118,10 @@ function requestWithBody(body: string): NextRequest {
   }) as NextRequest;
 }
 
+function emptyJsonRequest(): NextRequest {
+  return requestWithBody(JSON.stringify({}));
+}
+
 async function expectValidationError(
   route: RouteCase,
   validationCase: ValidationCase,
@@ -94,6 +135,118 @@ async function expectValidationError(
   expect(payload).toEqual({ detail: validationCase.detail });
   expect(mocks.createSupabaseClient).not.toHaveBeenCalled();
 }
+
+async function expectAuthGate(authCase: AuthGateCase) {
+  if (authCase.expectedStatus === 401) {
+    rejectUnauthenticated();
+  } else {
+    authorizeProfileAs(authCase.role ?? 'user');
+  }
+
+  const response = await authCase.run(authCase.request ?? emptyJsonRequest());
+  const payload = await response.json();
+
+  expect(response.status).toBe(authCase.expectedStatus);
+  expect(payload).toEqual({ detail: authCase.expectedDetail });
+  expect(mocks.createSupabaseClient).not.toHaveBeenCalled();
+}
+
+describe('admin route auth gates', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const authGateCases: AuthGateCase[] = [
+    {
+      name: 'publish-report rejects unauthenticated callers',
+      expectedStatus: 401,
+      expectedDetail: '인증 필요',
+      run: (request) => publishReportPost(request),
+    },
+    {
+      name: 'publish-report rejects non-admin callers',
+      expectedStatus: 403,
+      expectedDetail: '관리자 권한 필요',
+      role: 'user',
+      run: (request) => publishReportPost(request),
+    },
+    {
+      name: 'clear-critical rejects unauthenticated callers',
+      expectedStatus: 401,
+      expectedDetail: '인증 필요',
+      run: (request) => clearCriticalPost(request),
+    },
+    {
+      name: 'clear-critical rejects non-admin callers',
+      expectedStatus: 403,
+      expectedDetail: '관리자 권한 필요',
+      role: 'user',
+      run: (request) => clearCriticalPost(request),
+    },
+    {
+      name: 'reset-password rejects unauthenticated callers',
+      expectedStatus: 401,
+      expectedDetail: '인증 필요',
+      run: (request) => resetPasswordPost(request),
+    },
+    {
+      name: 'reset-password rejects admin callers',
+      expectedStatus: 403,
+      expectedDetail: '최고관리자 권한이 필요합니다',
+      role: 'admin',
+      run: (request) => resetPasswordPost(request),
+    },
+    {
+      name: 'create-user rejects unauthenticated callers',
+      expectedStatus: 401,
+      expectedDetail: '인증 필요',
+      run: (request) => createUserPost(request),
+    },
+    {
+      name: 'create-user rejects admin callers',
+      expectedStatus: 403,
+      expectedDetail: '최고 관리자 권한 필요',
+      role: 'admin',
+      run: (request) => createUserPost(request),
+    },
+    {
+      name: 'workspace-tokens overview rejects unauthenticated callers',
+      expectedStatus: 401,
+      expectedDetail: '인증 필요',
+      run: () => workspaceTokensGet(),
+    },
+    {
+      name: 'workspace-tokens overview rejects non-admin callers',
+      expectedStatus: 403,
+      expectedDetail: '관리자 권한 필요',
+      role: 'user',
+      run: () => workspaceTokensGet(),
+    },
+    {
+      name: 'workspace-tokens mutation rejects unauthenticated callers',
+      expectedStatus: 401,
+      expectedDetail: '인증 필요',
+      run: (request) => workspaceTokensPatch(request, {
+        params: Promise.resolve({ workspaceId: 'workspace-id' }),
+      }),
+    },
+    {
+      name: 'workspace-tokens mutation rejects admin callers',
+      expectedStatus: 403,
+      expectedDetail: '최고 관리자 권한 필요',
+      role: 'admin',
+      run: (request) => workspaceTokensPatch(request, {
+        params: Promise.resolve({ workspaceId: 'workspace-id' }),
+      }),
+    },
+  ];
+
+  for (const authCase of authGateCases) {
+    it(authCase.name, async () => {
+      await expectAuthGate(authCase);
+    });
+  }
+});
 
 describe('admin route body validation', () => {
   beforeEach(() => {

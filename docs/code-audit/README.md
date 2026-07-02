@@ -7,6 +7,7 @@
 - `findings.md`: 취약점·개선점 후보와 근거
 - `route-api-matrix.md`: Next route/API/hook auth·workspace matrix
 - `pdf-smoke-runbook.md`: cross-repo PDF 수동 smoke 시나리오
+- `pdf-playwright-e2e-design.md`: PDF/auth Playwright e2e 도입 전 fixture·보안 설계
 
 ## Ongoing audit branch workflow
 
