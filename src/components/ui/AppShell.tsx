@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   Menu,
   X,
+  TrendingUp,
 } from 'lucide-react';
 import { SirSymbol } from '@/components/icons/SirSymbol';
 import { SirLogoIcon } from '@/components/icons/SirLogo.Icon';
@@ -34,6 +35,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: '홈', href: '/', icon: Home, roles: ['super_admin', 'admin'] },
   { label: '워크스페이스', href: '/workspace', icon: LayoutDashboard },
+  { label: '선행지표', href: '/leading-sir', icon: TrendingUp, roles: ['super_admin', 'admin'] },
   { label: '리스크 관리', href: '/risk-reports', icon: ShieldAlert },
   { label: '유저 관리', href: '/users', icon: Users, roles: ['super_admin'] },
   { label: '모니터링', href: '/ops', icon: Activity, roles: ['super_admin'] },

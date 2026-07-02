@@ -276,6 +276,9 @@ export type Database = {
           date: string
           id: string
           is_carried: boolean
+          leading_momentum_3d: number | null
+          leading_momentum_z: number | null
+          leading_sir: number | null
           sir_score: number | null
           workspace_id: string
         }
@@ -283,6 +286,9 @@ export type Database = {
           date: string
           id?: string
           is_carried?: boolean
+          leading_momentum_3d?: number | null
+          leading_momentum_z?: number | null
+          leading_sir?: number | null
           sir_score?: number | null
           workspace_id: string
         }
@@ -290,6 +296,9 @@ export type Database = {
           date?: string
           id?: string
           is_carried?: boolean
+          leading_momentum_3d?: number | null
+          leading_momentum_z?: number | null
+          leading_sir?: number | null
           sir_score?: number | null
           workspace_id?: string
         }
