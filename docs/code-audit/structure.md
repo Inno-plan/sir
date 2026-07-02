@@ -139,6 +139,7 @@ Confidence: High.
 - Evidence: `vitest.config.ts` — Node test environment and `@` alias are configured for hermetic route-handler unit tests.
 - Evidence: `src/app/api/admin/admin-route-validation.test.ts` — admin auth gates and `publish-report`, `clear-critical`, `reset-password` invalid body cases are covered without creating a service-role client.
 - Evidence: `src/app/api/risk-report/risk-report-route-validation.test.ts` — `risk-report/request` auth/body validation and `risk-report/[id]` auth/membership/status/admin-note validation are covered with service-role writes/removes blocked on invalid paths.
+- Evidence: `src/app/api/monitoring/search-trend/search-trend-route-boundary.test.ts` — unauthenticated/body/RLS-invisible workspace/company-name failure paths are covered before service-role cache access or Naver fetch.
 - Evidence: `docs/code-audit/pdf-playwright-e2e-design.md` — PDF/auth Playwright e2e is designed but not installed; it requires stable auth storage-state fixtures and token-safe artifact policy.
 - Evidence: repo-local test-like files excluding `node_modules` are operational scripts: `scripts/test-dknd-e2e.mjs`, `scripts/test-future-sub.mjs`, `scripts/test-grace-cron.mjs`, `scripts/test-rpc-double-click.mjs`, plus inspection/seed scripts.
 - Evidence: no `playwright.config.*` found in this pass.
@@ -148,10 +149,10 @@ High-value regression candidates:
 1. Route/auth smoke: middleware/layout user/admin separation for `(app)` and `(client)` paths, support admin/client branching, plus `/report-pdf` token route behavior.
 2. Query/cache regression: `risk_notice_reads` NEW badge flow, risk report status invalidation, publish invalidation of workspace progress/detail.
 3. Report UI regression: PDF-mode risk table row limiting, report section navigation, channel/risk drawer open-only-when-data rules.
-4. API route handler regression: remaining `search-trend` RLS-before-service-role cache path and lower-risk/proxy route validation.
+4. API route handler regression: remaining lower-risk/proxy route validation and any future service-role route additions.
 5. Operational script safety: separate live Supabase smoke scripts from local CI tests and require explicit env guard for scripts that seed/mutate data.
 
-Inference: frontend now has a conventional hermetic unit-test surface for high-risk route auth/body validation, while browser/full-stack e2e remains manual/live-script based until the PDF/auth fixture design is implemented. Future tests should continue separating CI-safe unit tests from live Supabase smoke/e2e scripts.
+Inference: frontend now has a conventional hermetic unit-test surface for high-risk route auth/body validation and the main service-role cache boundary, while browser/full-stack e2e remains manual/live-script based until the PDF/auth fixture design is implemented. Future tests should continue separating CI-safe unit tests from live Supabase smoke/e2e scripts.
 Confidence: High.
 
 ## 10. Lint/typecheck/dependency verification — pass 3 + Phase 1A update
