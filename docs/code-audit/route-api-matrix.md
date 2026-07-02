@@ -1,16 +1,16 @@
 # sir-frontend Route/API/Hook Matrix — pass 3
 
 작성일: 2026-06-25
-상태: 2차 탐색 기반 + P0.2 PDF 개선 + 2026-07-02 main merge 이후 support/risk-report route 및 crawl-history 제거 반영본.
+상태: 2차 탐색 기반 + P0.2 PDF 개선 + 2026-07-02 main merge 이후 support/risk-report route, crawl-history 제거, admin helper body validation 반영본.
 
 ## 1. Next route handler authorization matrix
 
 | Route file | Method | Auth source | Role check | Service-role use | Backend proxy | Workspace validation | Notes |
 |---|---:|---|---|---|---|---|---|
-| `src/app/api/admin/clear-critical/route.ts` | POST | Supabase SSR `auth.getUser()` | `user_profiles.role` admin/super_admin | Yes | No | No workspace validation; platform/id only | Admin critical clear mutation. Target row validation is platform/id based. |
+| `src/app/api/admin/clear-critical/route.ts` | POST | Supabase SSR `auth.getUser()` | `user_profiles.role` admin/super_admin | Yes | No | No workspace validation; platform/id only | Rejects invalid JSON/body, non-string/empty `platform_id`/`id`, and unknown platform before service-role update. |
 | `src/app/api/admin/create-user/route.ts` | POST | Supabase SSR `auth.getUser()` | super_admin only | Yes | No | Creates workspace via RPC for user role | Rejects invalid JSON/body, unknown role, invalid tier, and subscription_start >= subscription_end before service-role writes. |
-| `src/app/api/admin/publish-report/route.ts` | POST | Supabase SSR `auth.getUser()` | admin/super_admin | Yes | No | report id/status only | Publishes report through Next service-role path. No explicit workspace-level target verification observed in this handler. Backend also has `/api/report/{id}/publish`. |
-| `src/app/api/admin/reset-password/route.ts` | POST | Supabase SSR `auth.getUser()` | super_admin only (`:15-22`) | Yes (`:38-43`) | No | user id only | Forced auth admin password update. |
+| `src/app/api/admin/publish-report/route.ts` | POST | Supabase SSR `auth.getUser()` | admin/super_admin | Yes | No | report id/status only | Rejects invalid JSON/body and non-string/empty `report_id`; publishes draft reports through Next service-role path. No explicit workspace-level target verification observed in this handler. Backend also has `/api/report/{id}/publish`. |
+| `src/app/api/admin/reset-password/route.ts` | POST | Supabase SSR `auth.getUser()` | super_admin only | Yes | No | user id only | Rejects invalid JSON/body, non-string/empty `userId`, and invalid password policy before forced auth admin password update. |
 | `src/app/api/admin/workspace-tokens/route.ts` | GET | Supabase SSR `auth.getUser()` | admin/super_admin (`:14-21`) | Yes (`:23-31`) | No | Lists all workspaces | Read-only but RLS-bypassing admin overview. |
 | `src/app/api/admin/workspace-tokens/[workspaceId]/route.ts` | PATCH | Supabase SSR `auth.getUser()` | super_admin only | Yes | No | workspaceId path param | Token mutation via RPC/update; rejects invalid JSON/body, non-integer `add_tokens`, and negative/non-integer `monthly_quota`. |
 | `src/app/api/companies/route.ts` | GET | None | None | No | No | N/A | Public KRX proxy using server-side API key; validates `type` and returns normalized upstream timeout/failure errors. |
@@ -30,7 +30,7 @@
 - Evidence: `search-trend` route validates workspace access with anon/RLS first, then uses service-role for cache table access; Naver DataLab fetch is now bounded and stale-cache degraded mode remains.
 - Evidence: static import search was used for API-module consumer mapping; dynamic imports/runtime-only consumers remain possible.
 - Evidence: dead report-create UI path was removed: `CreateReportButton`, `useCreateReport`, and stale frontend `createReport(workspaceId)` have no remaining `src` references.
-- Evidence: high-risk service-role write routes now validate role/tier/date/token numeric body values before invoking service-role auth/RPC/update calls.
+- Evidence: high-risk service-role write routes now validate role/tier/date/token numeric/admin helper body values before invoking service-role auth/RPC/update calls.
 - Evidence: main merge added risk-report route handlers. `request` performs body/source/report/workspace checks before service-role writes; `[id]` restricts mutation to admin/super_admin and validates the status/admin-note patch.
 - Evidence: main merge removed the crawl-history page/API/hook surface and added Supabase-direct support inquiry surfaces.
 - Evidence: `platformApi.ts` and `types/platform.ts` have no active `src` consumers outside their own import pair; active workspace/report flows use hardcoded platform constants/mappings in `workspaceApi.ts`, `utils/workspace.ts`, `monitoringApi.ts`, and `reportApi.ts`.
@@ -74,7 +74,7 @@
 ## 4. Follow-up gaps
 
 - `platformApi.ts` / `types/platform.ts` are classified as legacy/reserved, not removed: runtime impact is negligible because they are not imported by active code; revisit only if rebuilding platform-selection UI or doing a deliberate deletion pass that removes both together.
-- Continue route handler body validation matrix for lower-risk/proxy routes: schema/no schema, numeric bounds, enum checks, and consistent error envelope. After the 2026-07-02 main merge, `risk-report/request` and `risk-report/[id]` are documented; remaining obvious candidates are older admin helpers such as `publish-report`, `clear-critical`, `reset-password`, and workspace-token overview.
+- Continue route handler body validation matrix for lower-risk/proxy routes: schema/no schema, numeric bounds, enum checks, and consistent error envelope. After the 2026-07-02 main merge and admin helper pass, `risk-report/request`, `risk-report/[id]`, `publish-report`, `clear-critical`, `reset-password`, and workspace-token mutation are documented with explicit guards; remaining work is lower-risk/proxy route consistency and test harness coverage.
 - Client route policy is confirmed: `user` is blocked from admin shell, while admin/super_admin client-page preview/support access must be preserved.
 - Continue only long-tail timeout/retry behavior review; monitoring AI, KRX company search, and Naver DataLab search-trend route families now have bounded fetch/error normalization.
 

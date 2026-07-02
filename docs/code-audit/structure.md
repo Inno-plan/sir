@@ -43,10 +43,10 @@ Confidence: High.
 
 - Evidence: `src/lib/supabase/client.ts:4-8` — browser client는 `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` 사용.
 - Evidence: `src/lib/supabase/server.ts:5-27` — server client는 cookies 기반 SSR session 사용.
-- Evidence: `src/app/api/admin/create-user/route.ts:25-28` — admin route handler 내부에서 `SUPABASE_SERVICE_ROLE_KEY` client 생성.
-- Evidence: `src/app/api/admin/reset-password/route.ts:38-43` — service-role로 auth admin password update 수행.
-- Evidence: `src/app/api/admin/workspace-tokens/route.ts:23-31` — service-role로 workspace token data 조회.
-- Evidence: `src/app/api/monitoring/search-trend/route.ts:90-94` — cache table 접근을 위해 service-role client 생성.
+- Evidence: `src/app/api/admin/create-user/route.ts` — admin route handler 내부에서 `SUPABASE_SERVICE_ROLE_KEY` client 생성.
+- Evidence: `src/app/api/admin/reset-password/route.ts` — service-role로 auth admin password update 수행.
+- Evidence: `src/app/api/admin/workspace-tokens/route.ts` — service-role로 workspace token data 조회.
+- Evidence: `src/app/api/monitoring/search-trend/route.ts` — cache table 접근을 위해 service-role client 생성.
 - Evidence: `src/app/api/risk-report/request/route.ts` and `src/app/api/risk-report/[id]/route.ts` — 리스크 신고 요청/상태 변경은 SSR caller 확인 후 service-role client로 source/report/risk row를 조회·갱신한다.
 - Evidence: `src/lib/api/supportApi.ts` — support inquiry list/create/answer는 browser Supabase client와 `answer_support_inquiry` RPC를 사용한다.
 

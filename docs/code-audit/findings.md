@@ -1,7 +1,7 @@
 # sir-frontend Findings — pass 4
 
 작성일: 2026-06-25
-최종 업데이트: 2026-07-02 — main merge 이후 crawl-history 제거, support UI/API, risk-report route handlers, route/API matrix 정합화 반영.
+최종 업데이트: 2026-07-02 — main merge 이후 crawl-history 제거, support UI/API, risk-report route handlers, admin helper body validation, route/API matrix 정합화 반영.
 표기: Evidence = 코드/설정 직접 근거, Inference = 근거 기반 추론, Unknown = 추가 확인 필요.
 
 ## Ranked findings
@@ -9,7 +9,7 @@
 | Rank | Area | Finding | Severity | Confidence | Basis |
 |---:|---|---|---|---|---|
 | 1 | PDF auth | `/report-pdf`가 middleware를 우회하지만 P0.2에서 access/refresh token을 URL query 대신 Playwright injected session으로 전달한다. URL history/log/referrer 노출면은 줄었고, 남은 리스크는 user token을 backend→browser context로 위임하는 구조 자체다. | Low/Medium | High | `src/middleware.ts:13-15`, `src/lib/supabase/middleware.ts:8-13`, `src/app/report-pdf/[workspaceId]/[reportId]/page.tsx:15-62`, backend `sir-backend/services/pdf_service.py:18-84` |
-| 2 | Service role boundary | Next route handlers가 service-role로 RLS를 우회하는 admin/cache/risk 작업을 수행한다. `create-user`는 super_admin 전용으로 좁혔고, 고위험 service-role body validation 일부 및 risk-report route 검증이 보강됐다. 나머지 route별 감사 로그/검증 일관성은 별도 매트릭스 필요. | Medium | High | `src/app/api/admin/create-user/route.ts`, `src/app/api/admin/reset-password/route.ts`, `src/app/api/admin/workspace-tokens/[workspaceId]/route.ts`, `src/app/api/monitoring/search-trend/route.ts`, `src/app/api/risk-report/*/route.ts` |
+| 2 | Service role boundary | Next route handlers가 service-role로 RLS를 우회하는 admin/cache/risk 작업을 수행한다. `create-user`는 super_admin 전용으로 좁혔고, 고위험 service-role body validation 및 risk-report route 검증이 보강됐다. 나머지 route별 감사 로그/검증 일관성은 별도 매트릭스 필요. | Medium | High | `src/app/api/admin/create-user/route.ts`, `src/app/api/admin/publish-report/route.ts`, `src/app/api/admin/clear-critical/route.ts`, `src/app/api/admin/reset-password/route.ts`, `src/app/api/admin/workspace-tokens/[workspaceId]/route.ts`, `src/app/api/monitoring/search-trend/route.ts`, `src/app/api/risk-report/*/route.ts` |
 | 3 | Client route policy | `user`는 admin shell 진입이 차단되고, admin/super_admin은 고객 화면 preview/지원 목적으로 client route 접근이 허용되는 정책으로 확인됐다. | Policy confirmed / Low | High | `src/lib/supabase/middleware.ts:63-94`, `src/app/(app)/layout.tsx:8-16`, `src/app/(client)/layout.tsx:6-9`; user decision 2026-06-29 |
 | 4 | Environment secret handling | `.env.local`에 실제 secret이 로컬 평문으로 존재한다. git에는 ignore되지만 로컬/협업/캡처 유출 위험은 남는다. | Low/Process | High | `.env.local` key names, `.gitignore:16` ignores `*.local`, `git ls-files` shows not tracked |
 | 5 | Error/network resilience | monitoring AI backend proxy, KRX company search, and Naver DataLab search-trend routes now use bounded fetches and normalized upstream failure responses. Remaining work is broader retry/circuit-breaker policy, not an unbounded-fetch gap in these route families. | Resolved major frontend routes / Low remaining | High | `src/app/api/monitoring/ai-analysis/_proxy.ts`; `src/app/api/monitoring/ai-analysis/**/route.ts`; `src/app/api/companies/route.ts`; `src/app/api/monitoring/search-trend/route.ts` |
@@ -39,7 +39,9 @@ Verification note:
 ### F2. Service-role route boundary
 
 - Evidence: `src/app/api/admin/create-user/route.ts` now requires caller role `super_admin` before service-role use; `admin` callers receive `403`. The handler also rejects non-object/invalid JSON, unknown `role`, invalid `tier`, and non-increasing subscription date ranges before any service-role write.
-- Evidence: `src/app/api/admin/reset-password/route.ts:8-22` restricts reset to `super_admin`, then service-role admin update at `:38-43`.
+- Evidence: `src/app/api/admin/publish-report/route.ts` restricts publish to admin/super_admin, rejects invalid/non-object JSON and non-string/empty `report_id`, checks `draft` status, then service-role updates the report status.
+- Evidence: `src/app/api/admin/clear-critical/route.ts` restricts clear to admin/super_admin, rejects invalid/non-object JSON, non-string/empty `platform_id`/`id`, and unknown platform before service-role update.
+- Evidence: `src/app/api/admin/reset-password/route.ts` restricts reset to `super_admin`, rejects invalid/non-object JSON, non-string/empty `userId`, and invalid password policy before service-role auth admin update.
 - Evidence: `src/app/api/admin/workspace-tokens/[workspaceId]/route.ts` restricts PATCH to `super_admin`, then validates token patch body so `monthly_quota` must be a non-negative integer and `add_tokens` must be an integer before service-role RPC/update.
 - Evidence: `src/app/api/monitoring/search-trend/route.ts:71-82` checks workspace access via RLS before service-role cache SELECT/UPSERT at `:90-94` and `:191-205`.
 - Evidence: `src/app/api/risk-report/request/route.ts` validates body shape, platform/source mapping, attachment path prefix, active armor subscription, report↔workspace, source↔workspace/platform/session/report, and duplicate status before service-role insert/update.
@@ -158,7 +160,7 @@ Inference: the files are safe-looking deletion candidates, but deletion is defer
 
 ## Improvement backlog candidates
 
-1. Continue route-handler body validation matrix for remaining `src/app/api/**/route.ts` (schema/no schema, numeric bounds, enum checks, error shape); high-risk create-user/workspace-token mutation bodies and risk-report routes now have explicit guards.
+1. Continue route-handler body validation matrix for remaining lower-risk/proxy `src/app/api/**/route.ts` paths (schema/no schema, numeric bounds, enum checks, error shape); high-risk admin mutation bodies and risk-report routes now have explicit guards.
 2. Review only long-tail external/backend fetches for retry/circuit-breaker policy; monitoring AI, KRX, and Naver DataLab route families now have timeout/error normalization.
 3. Add CI-safe `test`/`e2e` scripts when a runner exists; `typecheck` is now explicit and live/operational smoke scripts should remain behind env guards.
 4. Manually verify the client crisis NEW badge/read-state flow in local dev or staging after auth/UI changes.

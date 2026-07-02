@@ -4,6 +4,14 @@ import { createClient as createAdminClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function requiredString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 export async function POST(request: NextRequest) {
   // 호출자 권한 검증 — super_admin/admin 만 허용
   const supabase = await createServerClient();
@@ -20,8 +28,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ detail: '관리자 권한 필요' }, { status: 403 });
   }
 
-  const body = await request.json();
-  const { report_id } = body;
+  let body: Record<string, unknown>;
+  try {
+    const parsed = await request.json();
+    if (!isRecord(parsed)) {
+      return NextResponse.json({ detail: 'JSON object body 필요' }, { status: 400 });
+    }
+    body = parsed;
+  } catch {
+    return NextResponse.json({ detail: '유효한 JSON body 필요' }, { status: 400 });
+  }
+
+  const report_id = requiredString(body.report_id);
   if (!report_id) {
     return NextResponse.json({ detail: 'report_id 필수' }, { status: 400 });
   }
