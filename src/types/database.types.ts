@@ -88,6 +88,24 @@ export type Database = {
           },
         ]
       }
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       community_items: {
         Row: {
           content: string | null
@@ -105,6 +123,7 @@ export type Database = {
           published_at: string | null
           sentiment: string | null
           session_id: string | null
+          summary: string | null
           title: string
           views: number | null
           workspace_id: string
@@ -125,6 +144,7 @@ export type Database = {
           published_at?: string | null
           sentiment?: string | null
           session_id?: string | null
+          summary?: string | null
           title: string
           views?: number | null
           workspace_id: string
@@ -145,6 +165,7 @@ export type Database = {
           published_at?: string | null
           sentiment?: string | null
           session_id?: string | null
+          summary?: string | null
           title?: string
           views?: number | null
           workspace_id?: string

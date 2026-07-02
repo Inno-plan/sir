@@ -5,6 +5,14 @@ import { checkPassword, PASSWORD_POLICY_MESSAGE } from '@/lib/auth/passwordPolic
 
 export const dynamic = 'force-dynamic';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function requiredString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 export async function POST(request: NextRequest) {
   // 호출자 권한 검증 — 비밀번호 재설정은 super_admin 만 허용 (create-user 보다 좁게)
   const supabaseUser = await createServerClient();
@@ -21,17 +29,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ detail: '최고관리자 권한이 필요합니다' }, { status: 403 });
   }
 
-  const { userId, password } = (await request.json()) as {
-    userId?: string;
-    password?: string;
-  };
+  let body: Record<string, unknown>;
+  try {
+    const parsed = await request.json();
+    if (!isRecord(parsed)) {
+      return NextResponse.json({ detail: 'JSON object body 필요' }, { status: 400 });
+    }
+    body = parsed;
+  } catch {
+    return NextResponse.json({ detail: '유효한 JSON body 필요' }, { status: 400 });
+  }
+
+  const userId = requiredString(body.userId);
+  const password = body.password;
   if (!userId || !password) {
     return NextResponse.json(
       { detail: '대상 유저와 비밀번호는 필수입니다' },
       { status: 400 },
     );
   }
-  if (!checkPassword(password).ok) {
+  if (typeof password !== 'string' || !checkPassword(password).ok) {
     return NextResponse.json({ detail: PASSWORD_POLICY_MESSAGE }, { status: 400 });
   }
 

@@ -1,7 +1,7 @@
-# sir-frontend Findings — pass 3
+# sir-frontend Findings — pass 4
 
 작성일: 2026-06-25
-최종 업데이트: 2026-06-29 — Phase 2 report/workspace hardening, admin client-access policy, live RLS confirmation 반영.
+최종 업데이트: 2026-07-02 — main merge 이후 crawl-history 제거, support UI/API, risk-report route handlers, admin helper body validation, route/API matrix 정합화 반영.
 표기: Evidence = 코드/설정 직접 근거, Inference = 근거 기반 추론, Unknown = 추가 확인 필요.
 
 ## Ranked findings
@@ -9,18 +9,19 @@
 | Rank | Area | Finding | Severity | Confidence | Basis |
 |---:|---|---|---|---|---|
 | 1 | PDF auth | `/report-pdf`가 middleware를 우회하지만 P0.2에서 access/refresh token을 URL query 대신 Playwright injected session으로 전달한다. URL history/log/referrer 노출면은 줄었고, 남은 리스크는 user token을 backend→browser context로 위임하는 구조 자체다. | Low/Medium | High | `src/middleware.ts:13-15`, `src/lib/supabase/middleware.ts:8-13`, `src/app/report-pdf/[workspaceId]/[reportId]/page.tsx:15-62`, backend `sir-backend/services/pdf_service.py:18-84` |
-| 2 | Service role boundary | Next route handlers가 service-role로 RLS를 우회하는 admin/cache 작업을 수행한다. 대부분 caller role check가 있으나, 각 route별 입력 검증/감사 일관성은 별도 매트릭스 필요. | Medium | High | `src/app/api/admin/create-user/route.ts:9-28`, `src/app/api/admin/reset-password/route.ts:8-43`, `src/app/api/admin/workspace-tokens/[workspaceId]/route.ts:13-52`, `src/app/api/monitoring/search-trend/route.ts:90-94` |
+| 2 | Service role boundary | Next route handlers가 service-role로 RLS를 우회하는 admin/cache/risk 작업을 수행한다. `create-user`는 super_admin 전용으로 좁혔고, 고위험 service-role body validation 및 risk-report route 검증이 보강됐다. 나머지 route별 감사 로그/검증 일관성은 별도 매트릭스 필요. | Medium | High | `src/app/api/admin/create-user/route.ts`, `src/app/api/admin/publish-report/route.ts`, `src/app/api/admin/clear-critical/route.ts`, `src/app/api/admin/reset-password/route.ts`, `src/app/api/admin/workspace-tokens/[workspaceId]/route.ts`, `src/app/api/monitoring/search-trend/route.ts`, `src/app/api/risk-report/*/route.ts` |
 | 3 | Client route policy | `user`는 admin shell 진입이 차단되고, admin/super_admin은 고객 화면 preview/지원 목적으로 client route 접근이 허용되는 정책으로 확인됐다. | Policy confirmed / Low | High | `src/lib/supabase/middleware.ts:63-94`, `src/app/(app)/layout.tsx:8-16`, `src/app/(client)/layout.tsx:6-9`; user decision 2026-06-29 |
 | 4 | Environment secret handling | `.env.local`에 실제 secret이 로컬 평문으로 존재한다. git에는 ignore되지만 로컬/협업/캡처 유출 위험은 남는다. | Low/Process | High | `.env.local` key names, `.gitignore:16` ignores `*.local`, `git ls-files` shows not tracked |
-| 5 | Error/network resilience | backend proxy route 일부는 기본 fetch 위주이고, timeout/circuit-breaker 공통 유틸은 아직 확인되지 않았다. | Low/Medium | Medium | `src/app/api/monitoring/ai-analysis/*.ts` scan; detailed utility search pending |
-| 6 | Type drift | live DB에서 `risk_notice_reads` RLS 적용은 확인됐지만 generated Supabase 타입에는 아직 없어 raw PostgREST fetch 경계가 남아 있다. | Low/Medium | High | `rg risk_notice_reads src/types/database.types.ts` no match; `src/lib/api/reportApi.ts:887-918`; user-provided `pg_policies` result 2026-06-29 |
-| 7 | Test surface | 공식 `test`/`typecheck`/`e2e` script와 test runner config가 없고, repo-local `test*.mjs`는 live/operational script 성격이다. | Medium | High | `package.json:6-11`; `find` test/config scan; `scripts/test-*.mjs` inventory |
+| 5 | Error/network resilience | monitoring AI backend proxy, KRX company search, and Naver DataLab search-trend routes now use bounded fetches and normalized upstream failure responses. Remaining work is broader retry/circuit-breaker policy, not an unbounded-fetch gap in these route families. | Resolved major frontend routes / Low remaining | High | `src/app/api/monitoring/ai-analysis/_proxy.ts`; `src/app/api/monitoring/ai-analysis/**/route.ts`; `src/app/api/companies/route.ts`; `src/app/api/monitoring/search-trend/route.ts` |
+| 6 | Type drift | `risk_notice_reads` generated 타입을 반영했고, crisis read-state 조회/저장을 raw PostgREST fetch에서 typed Supabase client select/upsert로 전환했다. | Resolved / Low remaining | High | `src/types/database.types.ts` `risk_notice_reads`; `src/lib/api/reportApi.ts` `getRiskNoticeRead` / `markRiskNoticeRead`; user-provided `pg_policies` result 2026-06-29 |
+| 7 | Test surface | Vitest 기반 `test` script와 route handler/report data/query/mutation/component render 단위 테스트가 추가됐다. e2e/Playwright는 설계 문서만 있고 아직 runner/config는 없으며, repo-local `test*.mjs`는 live/operational script 성격이다. | Low/Medium | High | `package.json`; `vitest.config.ts`; `src/app/api/admin/admin-route-validation.test.ts`; `src/app/api/risk-report/risk-report-route-validation.test.ts`; `src/app/api/monitoring/search-trend/search-trend-route-boundary.test.ts`; `src/lib/api/reportApi.reportData.test.ts`; `src/hooks/report/useReportQuery.test.ts`; `src/components/report/**/*.test.tsx`; `docs/code-audit/pdf-playwright-e2e-design.md`; `scripts/test-*.mjs` inventory |
 | 8 | Lint/config | Phase 1A에서 `scripts/**/*.mjs` Node globals override를 추가해 repo-level `npm run lint`가 통과한다. 기존 app-source warnings 13건은 남아 있다. | Resolved/Low | High | `eslint.config.js:13-19`; `npm run lint` |
 | 9 | Dependency vulnerabilities | Phase 1A에서 production audit는 0건으로 정리됐다. Legacy `jspdf`/`jspdf-autotable` dead path를 제거했고, `next`/`lodash`/`ws`/Next nested `postcss`를 lockfile/override로 보정했다. Dev-only audit 취약점은 별도 후속이다. | Resolved for prod / Dev risk remains | High | `package.json`, `package-lock.json`; `src/components/pipeline/ReportResult.tsx`; deleted `src/utils/reportPdf.ts`; `npm audit --omit=dev --audit-level=moderate` |
 | 10 | Route param consistency | Phase 2에서 client report/PDF entry와 PDF metadata/API handoff가 `reports.id` + `workspace_id` 조합을 검증하도록 강화됐다. 남은 표면은 내부 helper가 `reportId`로 meta/session을 캐시하는 구조를 계속 entry guard 뒤에서만 쓰도록 유지하는 것이다. | Resolved major path / Low remaining | High | `src/lib/api/reportApi.ts:194-200`; `src/app/(client)/report/[workspaceId]/[reportId]/page.tsx:76-112`; `src/app/report-pdf/[workspaceId]/[reportId]/page.tsx:129-137`; `src/components/client/sidebar/PdfDownloadButton.tsx:99-118`, `:161-167` |
 | 11 | Cross-repo PDF preflight | Phase 2에서 frontend download/render entry와 backend PDF API 모두 report↔workspace 조합을 차단한다. 남은 리스크는 user session을 backend→Playwright→frontend로 위임하는 구조와 수동 smoke coverage다. | Resolved preflight / Low remaining | High | `src/components/client/sidebar/PdfDownloadButton.tsx:99-118`, `:161-167`; `src/app/report-pdf/[workspaceId]/[reportId]/page.tsx:129-137`; backend `sir-backend/main.py` `_assert_report_pdf_access`/`report_pdf`, `sir-backend/services/pdf_service.py` |
 | 12 | Client/admin policy ambiguity | Resolved by product policy: admin/super_admin must be able to access all client/report files/screens. No redirect change is needed; TODO is documentation cleanup only. | Resolved / Policy | High | `src/lib/supabase/middleware.ts:63-82`; `src/app/(app)/layout.tsx:10-16`; `src/app/(client)/layout.tsx:4-9`; user decision 2026-06-29 |
 | 13 | Cross-repo smoke gap | Backend has hermetic PDF preflight/service tests; frontend/full-stack PDF render, token expiry, and log-redaction paths are covered by a manual smoke runbook rather than automated e2e for now. | Medium / Manual control | High | `package.json:6-11`; backend `tests/test_pdf_preflight.py`, `tests/test_pdf_service.py`; `docs/code-audit/pdf-smoke-runbook.md` |
+| 14 | Legacy platform API | `platformApi.ts` / `types/platform.ts` have no active consumers and are classified as legacy/reserved rather than deleted. Runtime impact is negligible because active code does not import them. | Low / Reserved | High | `src/lib/api/platformApi.ts`; `src/types/platform.ts`; static search; active platform constants in `workspaceApi.ts`, `utils/workspace.ts`, `monitoringApi.ts`, `reportApi.ts` |
 
 ## Evidence details
 
@@ -37,12 +38,25 @@ Verification note:
 
 ### F2. Service-role route boundary
 
-- Evidence: `src/app/api/admin/create-user/route.ts:9-23` validates caller role before service-role use at `:25-28`.
-- Evidence: `src/app/api/admin/reset-password/route.ts:8-22` restricts reset to `super_admin`, then service-role admin update at `:38-43`.
-- Evidence: `src/app/api/admin/workspace-tokens/[workspaceId]/route.ts:18-30` restricts PATCH to `super_admin`, then service-role at `:49-52`.
+- Evidence: `src/app/api/admin/create-user/route.ts` now requires caller role `super_admin` before service-role use; `admin` callers receive `403`. The handler also rejects non-object/invalid JSON, unknown `role`, invalid `tier`, and non-increasing subscription date ranges before any service-role write.
+- Evidence: `src/app/api/admin/publish-report/route.ts` restricts publish to admin/super_admin, rejects invalid/non-object JSON and non-string/empty `report_id`, checks `draft` status, then service-role updates the report status.
+- Evidence: `src/app/api/admin/clear-critical/route.ts` restricts clear to admin/super_admin, rejects invalid/non-object JSON, non-string/empty `platform_id`/`id`, and unknown platform before service-role update.
+- Evidence: `src/app/api/admin/reset-password/route.ts` restricts reset to `super_admin`, rejects invalid/non-object JSON, non-string/empty `userId`, and invalid password policy before service-role auth admin update.
+- Evidence: `src/app/api/admin/workspace-tokens/[workspaceId]/route.ts` restricts PATCH to `super_admin`, then validates token patch body so `monthly_quota` must be a non-negative integer and `add_tokens` must be an integer before service-role RPC/update.
 - Evidence: `src/app/api/monitoring/search-trend/route.ts:71-82` checks workspace access via RLS before service-role cache SELECT/UPSERT at `:90-94` and `:191-205`.
+- Evidence: `src/app/api/risk-report/request/route.ts` validates body shape, platform/source mapping, attachment path prefix, active armor subscription, report↔workspace, source↔workspace/platform/session/report, and duplicate status before service-role insert/update.
+- Evidence: `src/app/api/risk-report/[id]/route.ts` restricts updates to admin/super_admin, checks admin workspace membership, validates status/admin-note patch fields, and removes attachments on terminal statuses.
+- Evidence: the 2026-07-02 main merge removed crawl-history code paths and added Supabase-direct support inquiry surfaces via `src/lib/api/supportApi.ts`, `hooks/support/*`, `(app)/support`, and `(client)/support/[workspaceId]`.
 
 Inference: service-role usage is not automatically unsafe because routes perform role/membership checks first. The improvement target is consistency: route-by-route matrix of caller role, workspace validation, body validation, side effect, and audit log presence.
+
+### F2b. Dead report-create frontend path removed
+
+- Evidence: legacy `src/components/workspace/detail/CreateReportButton.tsx` was deleted.
+- Evidence: `src/hooks/report/useReportMutation.ts` no longer exports `useCreateReport`, and `src/lib/api/reportApi.ts` no longer exports the stale `createReport(workspaceId)` frontend API helper.
+- Evidence: static search for `CreateReportButton`, `useCreateReport`, `createReport(`, and `CreatedReport` in `src` returns no active references after deletion.
+
+Inference: the active scheduled/manual report creation path remains the backend `/api/report` / `/api/cron/report` flow with explicit `type`; the removed frontend path only sent `workspace_id` and was unreachable dead code.
 
 ### F3. Client route role policy confirmed
 
@@ -52,24 +66,48 @@ Inference: service-role usage is not automatically unsafe because routes perform
 
 Inference: Current behavior is policy-aligned. No middleware/layout redirect change is needed; only TODO/comment documentation may be cleaned later.
 
-### F6. Generated Supabase type drift
+### F5. External/proxy fetch resilience — resolved for major frontend route families
 
-- Evidence: `src/types/database.types.ts:1536-1631` exports generated helper types for tables/inserts/updates/enums.
-- Evidence: `src/lib/api/reportApi.ts:1-6` uses `Database['public']['Tables']` for typed row narrowing.
-- Evidence: `rg risk_notice_reads src/types/database.types.ts` returned no matches.
-- Evidence: `src/lib/api/reportApi.ts:887-918` accesses `risk_notice_reads` through raw PostgREST `fetch()` with authenticated headers.
-- Verification: `npx tsc --noEmit` passed.
+- Evidence: `src/app/api/monitoring/ai-analysis/_proxy.ts` centralizes Authorization checks, backend URL configuration errors, backend response forwarding, a 30s `AbortSignal.timeout`, and normalized `502`/`504` JSON error responses.
+- Evidence: `src/app/api/monitoring/ai-analysis/route.ts`, `estimate/route.ts`, and `latest/route.ts` use the shared helper instead of duplicating raw `fetch`/catch blocks.
+- Evidence: `src/app/api/companies/route.ts` now validates `type`, bounds KRX fetches with `AbortSignal.timeout`, and returns normalized upstream `502` or timeout `504` responses.
+- Evidence: `src/app/api/monitoring/search-trend/route.ts` now validates JSON body shape, bounds Naver DataLab fetches with `AbortSignal.timeout`, keeps stale-cache degraded mode, and returns normalized upstream `502` or timeout `504` when no stale cache exists.
+
+Inference: the main frontend external/backend route handlers no longer rely on unbounded fetches. Remaining lower-priority work is product-level retry/circuit-breaker policy or other long-tail fetch call sites outside these route families.
+
+### F6. Generated Supabase type drift — typed client path completed
+
+- Evidence: `src/types/database.types.ts` includes the generated `risk_notice_reads` table type with `Row`, `Insert`, `Update`, and relationships to `user_profiles` / `workspaces`.
+- Evidence: the 2026-06-30 typegen also synced live schema drift for `app_settings`, `community_items.summary`, and additional RPC signatures.
+- Evidence: `src/lib/api/reportApi.ts` now uses typed Supabase `.from('risk_notice_reads').select(...).maybeSingle()` for read-state lookup and `.upsert(..., { onConflict: 'profile_id,workspace_id' })` for read-state saves.
+- Evidence: the existing guard that only `role='user'` can mutate crisis read-state is preserved before upsert; admin/super_admin preview visits still do not mark client read-state.
+- Evidence: `src/lib/api/reportApi.riskNotice.test.ts` covers no-session read/write no-ops, authenticated typed lookup, user-only upsert payload/onConflict, and read/upsert error propagation for crisis read-state.
+- Evidence: `src/hooks/report/useReportMutation.test.ts` covers `useMarkRiskNoticeRead` mutation wiring and invalidation of `reportKeys.riskNoticeRead(workspaceId)`.
+- Evidence: `src/components/client/sidebar/riskNoticeBadge.ts` plus `SidebarMainNav.test.ts` cover the NEW badge timestamp comparison, missing read-state, and invalid timestamp boundaries.
+- Verification: `SUPABASE_CHECK_UPDATE=false supabase gen types typescript --project-id uggbeedbspbypvousmwi --schema public` completed successfully with Supabase CLI 2.90.0 during typegen, then typed client conversion passed frontend typecheck/lint.
 - Live policy confirmation supplied by user on 2026-06-29: `risk_notice_reads_select_own_user`, `insert_own_user`, and `update_own_user` policies exist for authenticated `role='user'` workspace members only.
 
-Inference: the read-state table is applied and RLS is policy-aligned. Frontend generated types have not caught up, so the remaining improvement is typegen + replacing/retiring the raw PostgREST escape if practical.
+Inference: the schema/type drift and raw PostgREST escape are resolved for the crisis read-state path, and CI-safe unit tests now cover the core read/write/cache invalidation/NEW comparison behavior. Remaining risk is ordinary manual UI verification of the NEW badge/read-state behavior in local dev or staging; no live mutation smoke was run during remediation.
 
 ### F7. Test surface gap
 
-- Evidence: `package.json:6-11` has no `test`, `typecheck`, or `e2e` script.
-- Evidence: no `vitest.config.*`, `jest.config.*`, or `playwright.config.*` was found in this pass.
+- Evidence: `package.json` now has `test: vitest run` and `typecheck: tsc --noEmit`.
+- Evidence: `vitest.config.ts` configures a Node test environment and the `@` → `src` alias for route-handler unit tests.
+- Evidence: `src/app/api/admin/admin-route-validation.test.ts` covers unauthenticated/forbidden auth gates across admin helpers and invalid JSON/non-object/missing/non-string body validation for `publish-report`, `clear-critical`, and `reset-password`; invalid/unauthorized paths assert that the service-role client is not created.
+- Evidence: `src/app/api/risk-report/risk-report-route-validation.test.ts` covers `risk-report/request` unauthenticated/body validation paths before service-role client creation and `risk-report/[id]` auth/membership/status/admin-note validation paths without updating rows or removing attachments.
+- Evidence: `src/app/api/monitoring/search-trend/search-trend-route-boundary.test.ts` covers unauthenticated/body/RLS-invisible workspace/workspace lookup/company-name failure paths and asserts service-role cache client plus Naver fetch are not reached before the RLS-backed workspace check passes.
+- Evidence: `src/lib/api/reportApi.riskNotice.test.ts`, `src/hooks/report/useReportMutation.test.ts`, and `src/components/client/sidebar/SidebarMainNav.test.ts` cover the crisis NEW read-state API, cache invalidation hook, and badge timestamp helper without live Supabase/browser dependencies.
+- Evidence: `src/lib/api/reportApi.reportData.test.ts` covers report info `workspaceId + reportId` filtering, summary report-id filtering/schema parsing, and strategy category sorting/malformed-row fallback.
+- Evidence: `src/hooks/report/useReportQuery.test.ts` covers report info, weekly summary, channel stats, previous daily snapshot skip, risk report, and resolved risk report query keys/enabled/queryFn boundaries.
+- Evidence: `src/hooks/report/useReportMutation.test.ts` now also covers report publish cache refresh, summary optimistic update/rollback/refetch, and strategy optimistic update/rollback/refetch.
+- Evidence: `src/components/client/sidebar/sections.test.ts` covers report type → client section mapping before PDF/e2e automation.
+- Evidence: `vitest.config.ts` now enables TSX test files through OXC automatic JSX transform, allowing server-render component tests without adding browser/e2e dependencies.
+- Evidence: `src/components/report/ReportHeader.test.tsx`, `highlight/SummaryAccordion.test.tsx`, `strategy/StrategyCard.test.tsx`, and `risk-content/RiskTable.test.tsx` cover report header copy/link behavior, PDF-mode expanded summary/strategy sections, risk empty-state, and PDF row-limit summary rendering.
+- Evidence: `docs/code-audit/pdf-playwright-e2e-design.md` records the future Playwright fixture, artifact, scenario, and CI gate design for PDF/auth browser coverage.
+- Evidence: no `e2e` script or `playwright.config.*` was found in this pass.
 - Evidence: repo-local test-like files are `scripts/test-dknd-e2e.mjs`, `scripts/test-future-sub.mjs`, `scripts/test-grace-cron.mjs`, and `scripts/test-rpc-double-click.mjs`.
 
-Inference: current frontend verification relies on build/lint/manual QA and operational scripts, not CI-safe unit/e2e tests. High-value missing tests include route auth boundaries, report/PDF rendering, risk NEW read-state cache invalidation, and admin route handler role gates.
+Inference: CI-safe frontend unit coverage now covers the highest-risk admin/risk-report route auth/body validation paths, the `search-trend` RLS-before-service-role boundary, the crisis NEW read-state/cache invalidation helper flow, the first report data/query/mutation/section boundaries, and initial report component/PDF-mode render behavior. High-value missing tests still include broader report page integration/PDF-mode component coverage and e2e coverage for live auth/session/browser/backend flows.
 
 ### F8. Repo-level lint mismatch — Phase 1A resolved
 
@@ -95,11 +133,12 @@ Inference: Phase 1A frontend production dependency audit is closed. The correct 
 ### F10. Client route-param consistency — Phase 2 resolved major path
 
 - Evidence: `src/lib/api/reportApi.ts:194-200` now fetches report info with both `id = reportId` and `workspace_id = workspaceId`.
+- Evidence: `src/lib/api/reportApi.reportData.test.ts` locks the same report info `id + workspace_id` filter and null mismatch behavior in a CI-safe unit test.
 - Evidence: `src/app/(client)/report/[workspaceId]/[reportId]/page.tsx:76-112` renders an error state instead of report sections when the pair is invalid.
 - Evidence: `src/app/report-pdf/[workspaceId]/[reportId]/page.tsx:129-137` similarly stops PDF render and sets a PDF contract error when the pair is invalid.
 - Evidence: `src/components/client/sidebar/PdfDownloadButton.tsx:99-118` fetches PDF period metadata with both `reportId` and `workspaceId`, and `:161-167` blocks backend PDF delegation when the pair is invalid.
 
-Inference: manually constructed mismatched route params should no longer mix report metadata and workspace data at the report/PDF entry points. Internal helpers such as `getReportMeta(reportId)` still cache by report id, so they should remain behind entry guards or be revisited in a future cleanup if reused elsewhere.
+Inference: manually constructed mismatched route params should no longer mix report metadata and workspace data at the report/PDF entry points, and the key report-info API filter is now unit-tested. Internal helpers such as `getReportMeta(reportId)` still cache by report id, so they should remain behind entry guards or be revisited in a future cleanup if reused elsewhere.
 
 ### F11. Cross-repo PDF preflight — Phase 2 resolved preflight
 
@@ -112,28 +151,39 @@ Inference: Unauthorized/mismatched PDF generation work is now blocked before or 
 
 ### F12. Client/admin route policy confirmed
 
-- Evidence: `src/lib/supabase/middleware.ts:63-82` blocks `role='user'` from admin routes and blocks non-super_admin from `/users` and `/crawl-history`.
+- Evidence: `src/lib/supabase/middleware.ts:63-82` blocks `role='user'` from admin routes and blocks non-super_admin from `/users`.
 - Evidence: `src/app/(app)/layout.tsx:10-16` repeats a user-role redirect before admin AppShell render.
 - Evidence: `src/app/(client)/layout.tsx:4-9` has a TODO about role branch and renders ClientShell for any authenticated user.
+- Evidence: `src/app/(app)/support/page.tsx:7-21` renders admin support inbox for admin/super_admin and filters assigned workspaces for admin; `src/app/(client)/support/[workspaceId]/page.tsx:12-20` sends non-user roles to `/support`.
 - User decision 2026-06-29: admin/super_admin must have access to all screens/files.
 
 Inference: admin/super_admin access to client routes is intended support/preview behavior. Future changes should preserve that access unless product policy changes.
 
 ### F13. Cross-repo smoke gap → manual runbook
 
-- Evidence: `package.json:6-11` has no `test`, `typecheck`, or `e2e` script.
+- Evidence: `package.json` now has `test: vitest run` and `typecheck: tsc --noEmit`, but still has no `e2e` script.
 - Evidence: backend `tests/test_pdf_preflight.py` and `tests/test_pdf_service.py` cover preflight and token-free navigation only.
 - Evidence: `docs/code-audit/pdf-smoke-runbook.md` now records manual smoke scenarios for valid PDF render, mismatch, token expiry, role policy, and token/log redaction.
+- Evidence: `docs/code-audit/pdf-playwright-e2e-design.md` defines the required Playwright auth fixture, token-sensitive artifact policy, and staged CI gate before automating that runbook.
 
-Inference: full-stack PDF coverage remains manual for now because it depends on live auth/session/browser/backend coordination. This is acceptable as an audit control if run before release or after PDF/auth changes.
+Inference: full-stack PDF coverage remains manual for now because it depends on live auth/session/browser/backend coordination. The next automation step is prepared, but should wait for deterministic auth fixtures and artifact redaction controls.
+
+### F14. Legacy platform API classified as reserved
+
+- Evidence: static search finds no active consumers for `src/lib/api/platformApi.ts`, its exports (`getPlatforms`, `getPlatformsByWorkspace`, `createPlatforms`, `deletePlatform`), or `src/types/platform.ts` outside their own import pair.
+- Evidence: active workspace/report surfaces use hardcoded platform constants and mappings instead: `ACTIVE_PLATFORMS` in `src/lib/api/workspaceApi.ts`, `ALL_PLATFORMS`/`WEEKLY_PLATFORMS` in `src/utils/workspace.ts`, and channel mappings in `src/lib/api/monitoringApi.ts` / `src/lib/api/reportApi.ts`.
+
+Inference: the files are safe-looking deletion candidates, but deletion is deferred because they may document or support a future platform-selection UI. Keeping them has negligible runtime cost because active code does not import them. If this changes, remove `platformApi.ts` and `types/platform.ts` together in a deliberate deletion pass or replace them with a real UI-backed platform source.
 
 ## Improvement backlog candidates
 
-1. Create/extend route-handler body validation matrix for all `src/app/api/**/route.ts` (schema/no schema, numeric bounds, enum checks, error shape).
-2. Add common backend proxy helper with timeout and normalized error shape for monitoring AI proxy routes.
-3. Regenerate Supabase DB types now that `risk_notice_reads` is confirmed applied, then replace/retire raw PostgREST type escape if practical.
-4. Add explicit `typecheck` and CI-safe test scripts; keep live/operational smoke scripts behind env guards.
+1. Continue route-handler body validation matrix for remaining lower-risk/proxy `src/app/api/**/route.ts` paths (schema/no schema, numeric bounds, enum checks, error shape); high-risk admin mutation bodies and risk-report routes now have explicit guards.
+2. Review only long-tail external/backend fetches for retry/circuit-breaker policy; monitoring AI, KRX, and Naver DataLab route families now have timeout/error normalization.
+3. Add `e2e` only when the Playwright auth fixture/test environment from `pdf-playwright-e2e-design.md` exists; live/operational smoke scripts should remain behind env guards.
+4. Manually verify the client crisis NEW badge/read-state flow in local dev or staging after auth/UI changes; unit tests now cover the pure badge/read-state/cache invalidation logic.
 5. Triage remaining dev-only `npm audit` findings (`@babel/core`, `brace-expansion`, `flatted`, `js-yaml`, `picomatch`, dev `postcss`) separately from production audit closure.
-6. Add high-value tests for route auth, report/PDF render, risk NEW read-state invalidation, and admin route handler role gates.
+6. Expand component/render tests for broader report UI and PDF-mode behavior beyond the current header/summary/strategy/risk-table smoke coverage.
 7. Run the manual cross-repo PDF smoke runbook after PDF/auth changes or before release.
 8. Preserve current policy that admin/super_admin can access client routes for preview/support.
+9. Keep removed dead report-create UI path out unless a future UI reintroduces explicit `type` and backend-aligned validation.
+10. Keep `platformApi.ts` / `types/platform.ts` as legacy/reserved unless a future platform-selection UI needs them or a deliberate deletion pass removes both together.

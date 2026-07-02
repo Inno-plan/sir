@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useRiskItemSummary, useRiskNoticeRead } from '@/hooks/report/useReportQuery';
+import { isRiskNewerThanSeen } from '@/components/client/sidebar/riskNoticeBadge';
 
 interface SidebarMainNavProps {
   isOpen: boolean;
@@ -25,19 +26,6 @@ type NavItem = {
   active: boolean;
   showNew?: boolean;
 };
-
-function isRiskNewerThanSeen(latestRiskAt?: string | null, latestSeenRiskAt?: string | null) {
-  if (!latestRiskAt) return false;
-  if (!latestSeenRiskAt) return true;
-
-  const latestRiskTime = Date.parse(latestRiskAt);
-  const latestSeenTime = Date.parse(latestSeenRiskAt);
-
-  if (Number.isNaN(latestRiskTime)) return false;
-  if (Number.isNaN(latestSeenTime)) return true;
-
-  return latestRiskTime > latestSeenTime;
-}
 
 /** client 사이드바 상위 2 메뉴 — 보고서 / 위기 대응 센터 */
 export function SidebarMainNav({

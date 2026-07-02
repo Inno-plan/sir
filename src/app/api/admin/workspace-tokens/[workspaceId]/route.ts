@@ -4,6 +4,14 @@ import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function hasOwn(record: Record<string, unknown>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(record, key);
+}
+
 /** PATCH — 워크스페이스 토큰 수정. super_admin 만.
  *
  *  body: { monthly_quota?: number, add_tokens?: number }
@@ -29,22 +37,50 @@ export async function PATCH(
     return NextResponse.json({ detail: '최고 관리자 권한 필요' }, { status: 403 });
   }
 
-  const body = await request.json();
-  const monthly_quota: number | undefined = body.monthly_quota;
-  const add_tokens: number | undefined = body.add_tokens;
+  let body: Record<string, unknown>;
+  try {
+    const parsed = await request.json();
+    if (!isRecord(parsed)) {
+      return NextResponse.json({ detail: 'JSON object body 필요' }, { status: 400 });
+    }
+    body = parsed;
+  } catch {
+    return NextResponse.json({ detail: '유효한 JSON body 필요' }, { status: 400 });
+  }
 
-  if (monthly_quota === undefined && add_tokens === undefined) {
+  const hasMonthlyQuota = hasOwn(body, 'monthly_quota');
+  const hasAddTokens = hasOwn(body, 'add_tokens');
+  const monthly_quota = body.monthly_quota;
+  const add_tokens = body.add_tokens;
+
+  if (!hasMonthlyQuota && !hasAddTokens) {
     return NextResponse.json(
       { detail: 'monthly_quota 또는 add_tokens 중 하나는 필요합니다' },
       { status: 400 },
     );
   }
-  if (monthly_quota !== undefined && monthly_quota < 0) {
+  if (
+    hasMonthlyQuota &&
+    (typeof monthly_quota !== 'number' ||
+      !Number.isSafeInteger(monthly_quota) ||
+      monthly_quota < 0)
+  ) {
     return NextResponse.json(
-      { detail: 'monthly_quota 는 0 이상이어야 합니다' },
+      { detail: 'monthly_quota 는 0 이상의 정수여야 합니다' },
       { status: 400 },
     );
   }
+  if (
+    hasAddTokens &&
+    (typeof add_tokens !== 'number' || !Number.isSafeInteger(add_tokens))
+  ) {
+    return NextResponse.json(
+      { detail: 'add_tokens 는 정수여야 합니다' },
+      { status: 400 },
+    );
+  }
+  const monthlyQuotaValue = hasMonthlyQuota ? (monthly_quota as number) : undefined;
+  const addTokensValue = hasAddTokens ? (add_tokens as number) : undefined;
 
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -52,20 +88,20 @@ export async function PATCH(
   );
 
   // add_tokens 는 atomic RPC (race 안전). monthly_quota 는 단순 UPDATE.
-  if (add_tokens !== undefined && add_tokens !== 0) {
+  if (addTokensValue !== undefined && addTokensValue !== 0) {
     const { error: rpcErr } = await supabaseAdmin.rpc('decrement_workspace_tokens', {
       p_workspace_id: workspaceId,
-      p_amount: -add_tokens,
+      p_amount: -addTokensValue,
     });
     if (rpcErr) {
       return NextResponse.json({ detail: rpcErr.message }, { status: 500 });
     }
   }
 
-  if (monthly_quota !== undefined) {
+  if (monthlyQuotaValue !== undefined) {
     const { error: updErr } = await supabaseAdmin
       .from('workspaces')
-      .update({ monthly_quota })
+      .update({ monthly_quota: monthlyQuotaValue })
       .eq('id', workspaceId);
     if (updErr) {
       return NextResponse.json({ detail: updErr.message }, { status: 500 });
