@@ -8,23 +8,23 @@ export const SUPPORT_CATEGORY_OPTIONS = [
   {
     id: 'feature',
     label: '기능 제안',
-    placeholder: '제안하고 싶은 기능과 현재 업무에서 불편한 점, 기대하는 개선 결과를 작성해주세요.',
+    placeholder: 'SIR에 추가하고 싶은 새로운 기능, 개선하고 싶은 불편한 점 등을 자유롭게 제안해주세요.',
   },
   {
     id: 'bug',
     label: '오류 신고',
-    placeholder: '오류가 발생한 화면, 재현 방법, 기대한 동작과 실제 동작을 자세히 작성해주세요.',
+    placeholder: '오류가 발생한 상황과 현재 상태 등을 자세히 작성해주세요.',
   },
   {
     id: 'upgrade',
     label: '서비스 업그레이드',
     placeholder:
-      '필요한 기능, 대상 워크스페이스, 희망 적용 시점 등 업그레이드 문의 내용을 작성해주세요.',
+      'Armor, Booster 서비스로 업그레이드를 원하시면 문의를 남겨주세요.',
   },
   {
     id: 'other',
     label: '기타',
-    placeholder: '문의 목적과 필요한 후속 조치를 자유롭게 작성해주세요.',
+    placeholder: '이용방법, 정산, 결제, 탈퇴 등 어떤 의견이든 부담 없이 문의해주세요.',
   },
 ] as const;
 
