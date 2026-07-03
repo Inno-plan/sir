@@ -87,7 +87,7 @@ export default function LoginPage() {
         {/* 약관 링크 */}
         <div className="mt-6 flex items-center justify-center gap-3 text-xs text-text-muted">
           <a
-            href="https://s-ir.kr/privacy-policy/"
+            href="https://protective-wasabi-62e.notion.site/39006eadfe0e8076a985d765bee5bf86"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-text-dark hover:underline transition-colors"
@@ -96,7 +96,7 @@ export default function LoginPage() {
           </a>
           <span className="text-border-light">|</span>
           <a
-            href="https://s-ir.kr/tems-of-use/"
+            href="https://protective-wasabi-62e.notion.site/39006eadfe0e8058bf86e140bdc01d3d?pvs=74"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-text-dark hover:underline transition-colors"
