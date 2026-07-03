@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { CheckCircle2, Clock3, MessageCircle, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
+import { ReportDisclaimer } from '@/components/report/ReportDisclaimer';
 import { SupportInquiryForm } from '@/components/support/SupportInquiryForm';
 import {
   useSupportInquiries,
@@ -222,6 +223,8 @@ export function SupportUserInquiries({
             )}
           </div>
         </section>
+
+        <ReportDisclaimer />
       </section>
 
       <Modal open={writeOpen} onClose={() => setWriteOpen(false)} title="문의 작성" size="xl">
