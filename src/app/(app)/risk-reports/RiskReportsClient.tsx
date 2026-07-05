@@ -143,7 +143,14 @@ function DetailModal({ report, onClose }: { report: RiskReport; onClose: () => v
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-text-dark">리스크 콘텐츠</label>
         <div className="bg-bg-blue rounded-lg px-4 py-3">
-          <a href={report.link} target="_blank" rel="noopener noreferrer" className="text-sm text-text-accent hover:underline">
+          <a
+            href={report.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`text-sm text-text-accent hover:underline ${
+              metadataNotice ? 'break-all' : ''
+            }`}
+          >
             {displayTitle}
           </a>
           {metadataNotice && (
@@ -534,7 +541,11 @@ export function RiskReportsClient({ assignedIds }: RiskReportsClientProps) {
                         {rr.reason}
                       </div>
                       <div className="pl-2 flex items-center gap-2 min-w-0">
-                        <span className="text-sm text-slate-800 font-semibold truncate">
+                        <span
+                          className={`min-w-0 text-sm text-slate-800 font-semibold ${
+                            metadataNotice ? 'break-all' : 'truncate'
+                          }`}
+                        >
                           {displayTitle}
                         </span>
                         {metadataNotice && (
@@ -571,7 +582,11 @@ export function RiskReportsClient({ assignedIds }: RiskReportsClientProps) {
                       </div>
                       <div className="flex items-start gap-2 min-w-0">
                         <div className="flex-1 min-w-0 flex flex-col gap-1">
-                          <p className="text-sm text-slate-800 font-semibold leading-snug line-clamp-2">
+                          <p
+                            className={`text-sm text-slate-800 font-semibold leading-snug line-clamp-2 ${
+                              metadataNotice ? 'break-all' : ''
+                            }`}
+                          >
                             {displayTitle}
                           </p>
                           {metadataNotice && (

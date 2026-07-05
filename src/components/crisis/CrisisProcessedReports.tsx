@@ -121,7 +121,9 @@ function DesktopTable({ reports }: { reports: RiskReport[] }) {
                   href={rr.link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm font-semibold text-text-dark hover:text-blue-600 hover:underline transition-colors truncate"
+                  className={`min-w-0 text-sm font-semibold text-text-dark hover:text-blue-600 hover:underline transition-colors ${
+                    metadataNotice ? 'break-all' : 'truncate'
+                  }`}
                 >
                   {displayTitle}
                 </a>
@@ -185,7 +187,9 @@ function MobileList({ reports }: { reports: RiskReport[] }) {
                   href={rr.link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm font-semibold text-text-dark hover:text-blue-600 hover:underline transition-colors"
+                  className={`text-sm font-semibold text-text-dark hover:text-blue-600 hover:underline transition-colors ${
+                    metadataNotice ? 'break-all' : ''
+                  }`}
                 >
                   {displayTitle}
                 </a>

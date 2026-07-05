@@ -237,7 +237,11 @@ export function RiskTable({
                               {criticalTypeDescriptions[item.critical_type] ?? item.critical_type}
                             </span>
                             <div className="flex flex-col gap-1">
-                              <span className="text-sm font-semibold text-text-dark">
+                              <span
+                                className={`min-w-0 text-sm font-semibold text-text-dark ${
+                                  metadataNotice ? 'break-all' : ''
+                                }`}
+                              >
                                 {displayTitle}
                               </span>
                               {metadataNotice && (
@@ -317,7 +321,9 @@ export function RiskTable({
                                 href={item.link}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-sm font-semibold text-text-dark hover:text-blue-600 hover:underline transition-colors"
+                                className={`min-w-0 text-sm font-semibold text-text-dark hover:text-blue-600 hover:underline transition-colors ${
+                                  metadataNotice ? 'break-all' : ''
+                                }`}
                               >
                                 {displayTitle}
                               </a>
@@ -466,7 +472,9 @@ export function RiskTable({
                         href={item.link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm font-semibold text-text-dark hover:text-blue-600 hover:underline transition-colors"
+                        className={`text-sm font-semibold text-text-dark hover:text-blue-600 hover:underline transition-colors ${
+                          metadataNotice ? 'break-all' : ''
+                        }`}
                       >
                         {displayTitle}
                       </a>

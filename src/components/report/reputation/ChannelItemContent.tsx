@@ -109,12 +109,14 @@ export function ChannelItemContent({ name, items }: ChannelItemContentProps) {
                     </div>
                     <div className="flex-1 min-w-0 lg:pl-4">
                       {/* 데스크톱 */}
-                      <div className="hidden lg:flex items-center gap-2">
+                      <div className="hidden lg:flex items-center gap-2 min-w-0">
                         <a
                           href={item.link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm text-text-dark font-semibold hover:text-blue-600 hover:underline transition-colors"
+                          className={`min-w-0 text-sm text-text-dark font-semibold hover:text-blue-600 hover:underline transition-colors ${
+                            metadataNotice ? 'break-all' : ''
+                          }`}
                         >
                           {displayTitle}
                         </a>
@@ -149,7 +151,9 @@ export function ChannelItemContent({ name, items }: ChannelItemContentProps) {
                           href={item.link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="hover:text-blue-600 hover:underline transition-colors"
+                          className={`hover:text-blue-600 hover:underline transition-colors ${
+                            metadataNotice ? 'break-all' : ''
+                          }`}
                         >
                           {displayTitle}
                         </a>

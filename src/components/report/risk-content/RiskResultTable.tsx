@@ -87,7 +87,14 @@ export function RiskResultTable({ workspaceId, periodStart, periodEnd, isDaily =
                       </div>
                       <div className="text-center text-xs text-text-muted">{rr.reason}</div>
                       <div className="px-3">
-                        <a href={rr.link} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-text-dark hover:text-blue-600 hover:underline transition-colors">
+                        <a
+                          href={rr.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`min-w-0 text-sm font-semibold text-text-dark hover:text-blue-600 hover:underline transition-colors ${
+                            metadataNotice ? 'break-all' : ''
+                          }`}
+                        >
                           {displayTitle}
                         </a>
                         {metadataNotice && (
@@ -137,7 +144,14 @@ export function RiskResultTable({ workspaceId, periodStart, periodEnd, isDaily =
                     <div className="flex gap-2">
                       <span className="w-14 shrink-0 text-sm text-text-mobile-muted pt-0.5">게시물</span>
                       <div className="flex-1 min-w-0 flex flex-col gap-1">
-                        <a href={rr.link} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-text-dark hover:text-blue-600 hover:underline transition-colors">
+                        <a
+                          href={rr.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`text-sm font-semibold text-text-dark hover:text-blue-600 hover:underline transition-colors ${
+                            metadataNotice ? 'break-all' : ''
+                          }`}
+                        >
                           {displayTitle}
                         </a>
                         {metadataNotice && (

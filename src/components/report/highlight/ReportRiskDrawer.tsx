@@ -74,7 +74,12 @@ function RiskItemCard({ item }: { item: RiskItem }) {
           </span>
         )}
       </div>
-      <p className="mt-1.5 text-[13px] font-semibold leading-relaxed text-slate-900">
+      <p
+        className={cn(
+          'mt-1.5 text-[13px] font-semibold leading-relaxed text-slate-900',
+          metadataNotice && 'break-all',
+        )}
+      >
         {displayTitle}
       </p>
       {item.critical_reason && (
