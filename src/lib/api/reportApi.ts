@@ -110,6 +110,7 @@ type SnsItemChannelRow = Pick<
   | 'views'
   | 'published_at'
   | 'impact_score'
+  | 'metadata_purged_at'
 >;
 type CommunityItemRiskRow = Pick<
   Row<'community_items'>,
@@ -132,6 +133,7 @@ type SnsItemRiskRow = Pick<
   | 'critical_reason'
   | 'published_at'
   | 'session_id'
+  | 'metadata_purged_at'
 >;
 
 // ── Report Meta 캐시 (session IDs + period) ──
@@ -627,6 +629,7 @@ export async function getChannelItems(
     published_at: r.published_at ?? null,
     cluster_id: null,
     impact_score: r.impact_score ?? null,
+    metadata_purged_at: r.metadata_purged_at ?? null,
   });
 
   if (reportId) {
@@ -657,7 +660,7 @@ export async function getChannelItems(
         supabase
           .from('sns_items')
           .select(
-            'id, platform_id, title, content, summary, sentiment, link, author, views, published_at, impact_score'
+            'id, platform_id, title, content, summary, sentiment, link, author, views, published_at, impact_score, metadata_purged_at'
           )
           .eq('workspace_id', workspaceId)
           .eq('is_relevant', true)
@@ -693,7 +696,7 @@ export async function getChannelItems(
       supabase
         .from('sns_items')
         .select(
-          'id, platform_id, title, content, summary, sentiment, link, author, views, published_at, critical_type, impact_score'
+          'id, platform_id, title, content, summary, sentiment, link, author, views, published_at, critical_type, impact_score, metadata_purged_at'
         )
         .eq('workspace_id', workspaceId)
         .eq('is_relevant', true)
@@ -719,6 +722,7 @@ export async function getRiskItems(workspaceId: string, reportId?: string): Prom
     critical_reason: r.critical_reason ?? null,
     published_at: r.published_at ?? null,
     session_id: r.session_id ?? null,
+    metadata_purged_at: 'metadata_purged_at' in r ? r.metadata_purged_at ?? null : null,
   });
 
   if (reportId) {
@@ -741,7 +745,7 @@ export async function getRiskItems(workspaceId: string, reportId?: string): Prom
         supabase
           .from('sns_items')
           .select(
-            'id, platform_id, title, link, critical_type, critical_reason, published_at, session_id'
+            'id, platform_id, title, link, critical_type, critical_reason, published_at, session_id, metadata_purged_at'
           )
           .eq('workspace_id', workspaceId)
           .eq('is_relevant', true)
@@ -772,7 +776,7 @@ export async function getRiskItems(workspaceId: string, reportId?: string): Prom
       supabase
         .from('sns_items')
         .select(
-          'id, platform_id, title, link, critical_type, critical_reason, published_at, session_id'
+          'id, platform_id, title, link, critical_type, critical_reason, published_at, session_id, metadata_purged_at'
         )
         .eq('workspace_id', workspaceId)
         .eq('is_relevant', true)
@@ -1160,6 +1164,7 @@ function toRiskReport(row: Row<'risk_reports'>): RiskReport {
     admin_note: row.admin_note,
     requested_at: row.requested_at ?? row.created_at ?? '',
     resolved_at: row.resolved_at,
+    metadata_purged_at: row.metadata_purged_at ?? null,
   };
 }
 

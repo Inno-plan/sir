@@ -134,6 +134,7 @@ export const channelItemSchema = z.object({
   impact_score: z.number().nullable().optional(),
   views: z.number().nullable().optional(),
   comments: z.number().nullable().optional(),
+  metadata_purged_at: z.string().nullable().optional(),
 });
 
 export type ChannelItem = z.infer<typeof channelItemSchema>;
@@ -168,6 +169,7 @@ export const riskItemSchema = z.object({
   /** 위기 대응 센터에서 여러 report 간 items 를 한꺼번에 표시할 때, 신고 대행 요청
    *  submit 시 올바른 report_id 를 역추적하기 위한 필드. */
   session_id: z.string().nullable().optional(),
+  metadata_purged_at: z.string().nullable().optional(),
 });
 
 export type RiskItem = z.infer<typeof riskItemSchema>;
@@ -205,6 +207,7 @@ export const riskReportSchema = z.object({
   admin_note: z.string().nullable(),
   requested_at: z.string(),
   resolved_at: z.string().nullable(),
+  metadata_purged_at: z.string().nullable().optional(),
 });
 
 export type RiskReport = z.infer<typeof riskReportSchema>;

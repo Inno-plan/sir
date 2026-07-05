@@ -88,24 +88,6 @@ export type Database = {
           },
         ]
       }
-      app_settings: {
-        Row: {
-          key: string
-          updated_at: string
-          value: string
-        }
-        Insert: {
-          key: string
-          updated_at?: string
-          value: string
-        }
-        Update: {
-          key?: string
-          updated_at?: string
-          value?: string
-        }
-        Relationships: []
-      }
       community_items: {
         Row: {
           content: string | null
@@ -123,7 +105,6 @@ export type Database = {
           published_at: string | null
           sentiment: string | null
           session_id: string | null
-          summary: string | null
           title: string
           views: number | null
           workspace_id: string
@@ -144,7 +125,6 @@ export type Database = {
           published_at?: string | null
           sentiment?: string | null
           session_id?: string | null
-          summary?: string | null
           title: string
           views?: number | null
           workspace_id: string
@@ -165,7 +145,6 @@ export type Database = {
           published_at?: string | null
           sentiment?: string | null
           session_id?: string | null
-          summary?: string | null
           title?: string
           views?: number | null
           workspace_id?: string
@@ -783,6 +762,7 @@ export type Database = {
           file_urls: string[]
           id: string
           link: string
+          metadata_purged_at: string | null
           platform_id: string
           reason: string
           report_id: string
@@ -803,6 +783,7 @@ export type Database = {
           file_urls?: string[]
           id?: string
           link: string
+          metadata_purged_at?: string | null
           platform_id: string
           reason: string
           report_id: string
@@ -823,6 +804,7 @@ export type Database = {
           file_urls?: string[]
           id?: string
           link?: string
+          metadata_purged_at?: string | null
           platform_id?: string
           reason?: string
           report_id?: string
@@ -1064,6 +1046,7 @@ export type Database = {
           impact_score: number | null
           is_relevant: boolean | null
           link: string
+          metadata_purged_at: string | null
           platform_id: string
           published_at: string | null
           sentiment: string | null
@@ -1084,6 +1067,7 @@ export type Database = {
           impact_score?: number | null
           is_relevant?: boolean | null
           link: string
+          metadata_purged_at?: string | null
           platform_id: string
           published_at?: string | null
           sentiment?: string | null
@@ -1104,6 +1088,7 @@ export type Database = {
           impact_score?: number | null
           is_relevant?: boolean | null
           link?: string
+          metadata_purged_at?: string | null
           platform_id?: string
           published_at?: string | null
           sentiment?: string | null
@@ -1611,6 +1596,7 @@ export type Database = {
         Args: { p_pause_at?: string; p_workspace_id: string }
         Returns: string
       }
+      purge_expired_youtube_metadata: { Args: never; Returns: number }
       renew_subscription: {
         Args: {
           p_new_ended_at: string

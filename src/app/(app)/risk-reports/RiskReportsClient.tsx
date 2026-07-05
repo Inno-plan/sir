@@ -16,6 +16,11 @@ import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { WorkspaceCombobox } from '@/components/ui/WorkspaceCombobox';
 import { ReportCalendarSelector } from '@/components/report/ReportCalendarSelector';
 import type { RiskReport } from '@/lib/api/reportApi';
+import {
+  YOUTUBE_METADATA_EXPIRED_LABEL,
+  getYoutubeDisplayTitle,
+  getYoutubeMetadataNotice,
+} from '@/lib/youtubeMetadata';
 
 const PAGE_SIZE = 50;
 
@@ -89,6 +94,8 @@ function DetailModal({ report, onClose }: { report: RiskReport; onClose: () => v
   const [status, setStatus] = useState(initialStatus);
   const [adminNote, setAdminNote] = useState(report.admin_note ?? '');
   const [showConfirm, setShowConfirm] = useState(false);
+  const displayTitle = getYoutubeDisplayTitle(report);
+  const metadataNotice = getYoutubeMetadataNotice(report);
 
   const update = useUpdateRiskReport(report.workspace_id);
   const saving = update.isPending;
@@ -137,8 +144,16 @@ function DetailModal({ report, onClose }: { report: RiskReport; onClose: () => v
         <label className="text-sm font-semibold text-text-dark">리스크 콘텐츠</label>
         <div className="bg-bg-blue rounded-lg px-4 py-3">
           <a href={report.link} target="_blank" rel="noopener noreferrer" className="text-sm text-text-accent hover:underline">
-            {report.title}
+            {displayTitle}
           </a>
+          {metadataNotice && (
+            <span
+              className="mt-2 block w-fit text-[10px] font-medium text-amber-600 bg-amber-50 rounded-full px-2 py-0.5"
+              title={metadataNotice}
+            >
+              {YOUTUBE_METADATA_EXPIRED_LABEL}
+            </span>
+          )}
         </div>
       </div>
 
@@ -496,6 +511,8 @@ export function RiskReportsClient({ assignedIds }: RiskReportsClientProps) {
                 const requestedLabel = rr.requested_at?.slice(5, 10).replace(/-/g, '.') ?? '';
                 const companyLabel = wsMap.get(rr.workspace_id) ?? '';
                 const platformLabel = PLATFORM_LABELS[rr.platform_id] ?? rr.platform_id;
+                const displayTitle = getYoutubeDisplayTitle(rr);
+                const metadataNotice = getYoutubeMetadataNotice(rr);
                 return (
                   <div
                     key={rr.id}
@@ -518,8 +535,16 @@ export function RiskReportsClient({ assignedIds }: RiskReportsClientProps) {
                       </div>
                       <div className="pl-2 flex items-center gap-2 min-w-0">
                         <span className="text-sm text-slate-800 font-semibold truncate">
-                          {rr.title}
+                          {displayTitle}
                         </span>
+                        {metadataNotice && (
+                          <span
+                            className="text-[10px] font-medium text-amber-600 bg-amber-50 rounded-full px-2 py-0.5 shrink-0"
+                            title={metadataNotice}
+                          >
+                            {YOUTUBE_METADATA_EXPIRED_LABEL}
+                          </span>
+                        )}
                         {rr.file_urls.length > 0 && (
                           <span className="flex items-center gap-0.5 text-slate-400 shrink-0">
                             <Paperclip size={12} />
@@ -545,9 +570,19 @@ export function RiskReportsClient({ assignedIds }: RiskReportsClientProps) {
                         </span>
                       </div>
                       <div className="flex items-start gap-2 min-w-0">
-                        <p className="text-sm text-slate-800 font-semibold leading-snug line-clamp-2 flex-1">
-                          {rr.title}
-                        </p>
+                        <div className="flex-1 min-w-0 flex flex-col gap-1">
+                          <p className="text-sm text-slate-800 font-semibold leading-snug line-clamp-2">
+                            {displayTitle}
+                          </p>
+                          {metadataNotice && (
+                            <span
+                              className="w-fit text-[10px] font-medium text-amber-600 bg-amber-50 rounded-full px-2 py-0.5"
+                              title={metadataNotice}
+                            >
+                              {YOUTUBE_METADATA_EXPIRED_LABEL}
+                            </span>
+                          )}
+                        </div>
                         {rr.file_urls.length > 0 && (
                           <span className="flex items-center gap-0.5 text-slate-400 shrink-0 mt-0.5">
                             <Paperclip size={12} />

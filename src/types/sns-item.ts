@@ -17,6 +17,7 @@ export const snsItemSchema = z.object({
   sentiment: sentimentEnum.nullable(),
   critical_type: criticalTypeEnum.nullable(),
   is_relevant: z.boolean().nullable(),
+  metadata_purged_at: z.string().nullable(),
   impact_score: z.number().nullable(),
   views: z.number().nullable(),
   comments: z.number().nullable(),

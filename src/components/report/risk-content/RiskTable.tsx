@@ -8,6 +8,11 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { RiskReportRequestModal } from '@/components/report/risk-content/RiskReportRequestModal';
 import { useClearCriticalType } from '@/hooks/report/useReportMutation';
 import type { RiskItem } from '@/lib/api/reportApi';
+import {
+  YOUTUBE_METADATA_EXPIRED_LABEL,
+  getYoutubeDisplayTitle,
+  getYoutubeMetadataNotice,
+} from '@/lib/youtubeMetadata';
 
 const criticalTypeConfig: Record<
   string,
@@ -205,6 +210,8 @@ export function RiskTable({
                     label: item.critical_type,
                     variant: 'slate' as const,
                   };
+                  const displayTitle = getYoutubeDisplayTitle(item);
+                  const metadataNotice = getYoutubeMetadataNotice(item);
                   return (
                     <div key={item.id}>
                       <div
@@ -231,8 +238,16 @@ export function RiskTable({
                             </span>
                             <div className="flex flex-col gap-1">
                               <span className="text-sm font-semibold text-text-dark">
-                                {item.title}
+                                {displayTitle}
                               </span>
+                              {metadataNotice && (
+                                <span
+                                  className="text-[10px] font-medium text-amber-600 bg-amber-50 rounded-full px-2 py-0.5 w-fit"
+                                  title={metadataNotice}
+                                >
+                                  {YOUTUBE_METADATA_EXPIRED_LABEL}
+                                </span>
+                              )}
                               {item.critical_reason && (
                                 <p className="text-xs text-text-dark leading-relaxed">
                                   {item.critical_reason}
@@ -260,6 +275,8 @@ export function RiskTable({
                     label: item.critical_type,
                     variant: 'slate' as const,
                   };
+                  const displayTitle = getYoutubeDisplayTitle(item);
+                  const metadataNotice = getYoutubeMetadataNotice(item);
                   return (
                     <div
                       key={virtualRow.key}
@@ -302,8 +319,16 @@ export function RiskTable({
                                 rel="noopener noreferrer"
                                 className="text-sm font-semibold text-text-dark hover:text-blue-600 hover:underline transition-colors"
                               >
-                                {item.title}
+                                {displayTitle}
                               </a>
+                              {metadataNotice && (
+                                <span
+                                  className="text-[10px] font-medium text-amber-600 bg-amber-50 rounded-full px-2 py-0.5 w-fit"
+                                  title={metadataNotice}
+                                >
+                                  {YOUTUBE_METADATA_EXPIRED_LABEL}
+                                </span>
+                              )}
                               {item.critical_reason && (
                                 <p className="text-xs text-text-dark leading-relaxed">
                                   {item.critical_reason}
@@ -398,6 +423,8 @@ export function RiskTable({
                 label: item.critical_type,
                 variant: 'slate' as const,
               };
+              const displayTitle = getYoutubeDisplayTitle(item);
+              const metadataNotice = getYoutubeMetadataNotice(item);
               return (
                 <div
                   key={item.id}
@@ -441,8 +468,16 @@ export function RiskTable({
                         rel="noopener noreferrer"
                         className="text-sm font-semibold text-text-dark hover:text-blue-600 hover:underline transition-colors"
                       >
-                        {item.title}
+                        {displayTitle}
                       </a>
+                      {metadataNotice && (
+                        <span
+                          className="text-[10px] font-medium text-amber-600 bg-amber-50 rounded-full px-2 py-0.5 w-fit"
+                          title={metadataNotice}
+                        >
+                          {YOUTUBE_METADATA_EXPIRED_LABEL}
+                        </span>
+                      )}
                       {item.critical_reason && (
                         <p className="text-[14px] text-text-dark leading-relaxed">
                           {item.critical_reason}

@@ -7,6 +7,11 @@ import { SentimentIcon, SentimentBadge } from '@/components/report/reputation/Se
 import { SentimentFilter } from '@/components/report/reputation/SentimentFilter';
 import { EmptyState } from '@/components/ui/EmptyState';
 import type { ChannelItem } from '@/lib/api/reportApi';
+import {
+  YOUTUBE_METADATA_EXPIRED_LABEL,
+  getYoutubeDisplayTitle,
+  getYoutubeMetadataNotice,
+} from '@/lib/youtubeMetadata';
 
 const CHANNEL_SORT: Record<string, (a: ChannelItem, b: ChannelItem) => number> = {
   블로그: (a, b) => (b.impact_score ?? 0) - (a.impact_score ?? 0),
@@ -20,6 +25,9 @@ interface ChannelItemContentProps {
 }
 
 function formatMeta(name: string, item: ChannelItem): string | null {
+  if (item.platform_id === 'youtube' && item.metadata_purged_at) {
+    return null;
+  }
   if (name === '블로그' && item.impact_score != null) {
     return `영향력 ${item.impact_score.toFixed(1)}`;
   }
@@ -79,6 +87,8 @@ export function ChannelItemContent({ name, items }: ChannelItemContentProps) {
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
               const item = filtered[virtualRow.index];
               const meta = formatMeta(name, item);
+              const displayTitle = getYoutubeDisplayTitle(item);
+              const metadataNotice = getYoutubeMetadataNotice(item);
               return (
                 <div
                   key={virtualRow.key}
@@ -106,8 +116,16 @@ export function ChannelItemContent({ name, items }: ChannelItemContentProps) {
                           rel="noopener noreferrer"
                           className="text-sm text-text-dark font-semibold hover:text-blue-600 hover:underline transition-colors"
                         >
-                          {item.title}
+                          {displayTitle}
                         </a>
+                        {metadataNotice && (
+                          <span
+                            className="text-[10px] font-medium text-amber-600 bg-amber-50 rounded-full px-2 py-0.5 shrink-0"
+                            title={metadataNotice}
+                          >
+                            {YOUTUBE_METADATA_EXPIRED_LABEL}
+                          </span>
+                        )}
                         {showSource && item.source && (
                           <span className="text-[10px] text-text-muted shrink-0">
                             {item.source}
@@ -133,9 +151,14 @@ export function ChannelItemContent({ name, items }: ChannelItemContentProps) {
                           rel="noopener noreferrer"
                           className="hover:text-blue-600 hover:underline transition-colors"
                         >
-                          {item.title}
+                          {displayTitle}
                         </a>
                       </p>
+                      {metadataNotice && (
+                        <p className="lg:hidden text-[11px] text-amber-600 mt-1">
+                          {YOUTUBE_METADATA_EXPIRED_LABEL}
+                        </p>
+                      )}
                       {showBody && (item.summary || item.content) && (
                         <p className="text-[14px] lg:text-sm text-text-dark mt-0.5">
                           {(item.summary || item.content || '').length > 200
