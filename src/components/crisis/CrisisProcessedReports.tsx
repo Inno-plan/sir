@@ -5,6 +5,11 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ReportCard } from '@/components/report/ReportCard';
 import type { RiskReport } from '@/types/report';
+import {
+  YOUTUBE_METADATA_EXPIRED_LABEL,
+  getYoutubeDisplayTitle,
+  getYoutubeMetadataNotice,
+} from '@/lib/youtubeMetadata';
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   requested: { label: '요청 완료', className: 'bg-slate-100 text-slate-600' },
@@ -96,6 +101,8 @@ function DesktopTable({ reports }: { reports: RiskReport[] }) {
       <div className="max-h-[600px] overflow-y-auto">
         {reports.map((rr) => {
           const statusCfg = STATUS_STYLES[rr.status] ?? { label: rr.status, className: 'bg-slate-100 text-slate-600' };
+          const displayTitle = getYoutubeDisplayTitle(rr);
+          const metadataNotice = getYoutubeMetadataNotice(rr);
           return (
             <div
               key={rr.id}
@@ -116,8 +123,16 @@ function DesktopTable({ reports }: { reports: RiskReport[] }) {
                   rel="noopener noreferrer"
                   className="text-sm font-semibold text-text-dark hover:text-blue-600 hover:underline transition-colors truncate"
                 >
-                  {rr.title}
+                  {displayTitle}
                 </a>
+                {metadataNotice && (
+                  <span
+                    className="text-[10px] font-medium text-amber-600 bg-amber-50 rounded-full px-2 py-0.5 shrink-0"
+                    title={metadataNotice}
+                  >
+                    {YOUTUBE_METADATA_EXPIRED_LABEL}
+                  </span>
+                )}
                 {rr.file_urls?.length > 0 && (
                   <span className="flex items-center gap-0.5 text-slate-400 shrink-0">
                     <Paperclip size={12} />
@@ -143,6 +158,8 @@ function MobileList({ reports }: { reports: RiskReport[] }) {
     <div className="lg:hidden flex flex-col gap-3 py-3 max-h-[400px] overflow-y-auto">
       {reports.map((rr) => {
         const statusCfg = STATUS_STYLES[rr.status] ?? { label: rr.status, className: 'bg-slate-100 text-slate-600' };
+        const displayTitle = getYoutubeDisplayTitle(rr);
+        const metadataNotice = getYoutubeMetadataNotice(rr);
         return (
           <div key={rr.id} className="border border-border-light rounded-xl p-4 flex flex-col gap-2.5">
             <div className="flex gap-2">
@@ -163,14 +180,24 @@ function MobileList({ reports }: { reports: RiskReport[] }) {
             </div>
             <div className="flex gap-2">
               <span className="w-14 shrink-0 text-sm text-text-mobile-muted pt-0.5">게시물</span>
-              <a
-                href={rr.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm font-semibold text-text-dark hover:text-blue-600 hover:underline transition-colors flex-1 min-w-0"
-              >
-                {rr.title}
-              </a>
+              <div className="flex-1 min-w-0 flex flex-col gap-1">
+                <a
+                  href={rr.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-semibold text-text-dark hover:text-blue-600 hover:underline transition-colors"
+                >
+                  {displayTitle}
+                </a>
+                {metadataNotice && (
+                  <span
+                    className="w-fit text-[10px] font-medium text-amber-600 bg-amber-50 rounded-full px-2 py-0.5"
+                    title={metadataNotice}
+                  >
+                    {YOUTUBE_METADATA_EXPIRED_LABEL}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex gap-2">
               <span className="w-14 shrink-0 text-sm text-text-mobile-muted pt-0.5">처리 결과</span>

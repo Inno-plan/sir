@@ -20,6 +20,7 @@ type SourceRow = {
   critical_type: CriticalType | null;
   critical_reason: string | null;
   is_relevant: boolean | null;
+  metadata_purged_at?: string | null;
 };
 
 const TABLE_BY_PLATFORM: Record<string, RiskSourceTable> = {
@@ -53,7 +54,8 @@ async function fetchSourceItem(
   table: RiskSourceTable,
   sourceId: string,
 ): Promise<{ data: SourceRow | null; error: Error | null }> {
-  const select = 'id, workspace_id, session_id, platform_id, title, link, critical_type, critical_reason, is_relevant';
+  const baseSelect = 'id, workspace_id, session_id, platform_id, title, link, critical_type, critical_reason, is_relevant';
+  const select = table === 'sns_items' ? `${baseSelect}, metadata_purged_at` : baseSelect;
   const result = await admin.from(table).select(select).eq('id', sourceId).maybeSingle();
   return {
     data: result.data as SourceRow | null,
@@ -214,8 +216,13 @@ export async function POST(request: NextRequest) {
     workspace_id: workspaceId,
     report_id: reportId,
     platform_id: platformId,
-    title: sourceItem.title || '(제목 없음)',
+    title:
+      platformId === 'youtube' && sourceItem.metadata_purged_at
+        ? sourceItem.link || 'YouTube URL'
+        : sourceItem.title || '(제목 없음)',
     link: sourceItem.link || '#',
+    metadata_purged_at:
+      platformId === 'youtube' ? sourceItem.metadata_purged_at ?? null : null,
     critical_type: sourceItem.critical_type,
     reason: input.reason,
     evidence: input.evidence,

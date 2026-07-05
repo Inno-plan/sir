@@ -3,6 +3,11 @@
 import { useMemo, useState } from 'react';
 import { SideDrawer } from '@/components/ui/SideDrawer';
 import { cn } from '@/lib/utils';
+import {
+  YOUTUBE_METADATA_EXPIRED_LABEL,
+  getYoutubeDisplayTitle,
+  getYoutubeMetadataNotice,
+} from '@/lib/youtubeMetadata';
 import type { ChannelItem } from '@/types/report';
 import {
   PLATFORM_TO_REPORT_CHANNEL,
@@ -139,13 +144,23 @@ function ItemMeta({ item, channel }: { item: ChannelItem; channel: ReportChannel
 
 function ItemCard({ item, channel }: { item: ChannelItem; channel: ReportChannel }) {
   const description = item.summary ?? item.content;
+  const displayTitle = getYoutubeDisplayTitle(item);
+  const metadataNotice = getYoutubeMetadataNotice(item);
   const body = (
     <>
       <div className="flex items-center gap-1.5">
         <SentimentBadge sentiment={item.sentiment} />
+        {metadataNotice && (
+          <span
+            className="inline-flex shrink-0 items-center rounded bg-amber-50 px-1.5 py-0.5 text-[10.5px] font-semibold text-amber-600"
+            title={metadataNotice}
+          >
+            {YOUTUBE_METADATA_EXPIRED_LABEL}
+          </span>
+        )}
       </div>
       <p className="mt-1.5 text-[13px] font-semibold leading-relaxed text-slate-900">
-        {item.title}
+        {displayTitle}
       </p>
       {description && (
         <p className="mt-1 line-clamp-3 text-[12px] leading-relaxed text-slate-500">

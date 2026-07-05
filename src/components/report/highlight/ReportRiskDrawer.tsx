@@ -2,6 +2,11 @@
 
 import { SideDrawer } from '@/components/ui/SideDrawer';
 import { cn } from '@/lib/utils';
+import {
+  YOUTUBE_METADATA_EXPIRED_LABEL,
+  getYoutubeDisplayTitle,
+  getYoutubeMetadataNotice,
+} from '@/lib/youtubeMetadata';
 import type { CriticalType } from '@/types/common';
 import type { RiskItem } from '@/types/report';
 import { REPORT_RISK_LABEL } from './riskMeta';
@@ -42,6 +47,8 @@ function formatDate(value?: string | null) {
 
 function RiskItemCard({ item }: { item: RiskItem }) {
   const date = formatDate(item.published_at);
+  const displayTitle = getYoutubeDisplayTitle(item);
+  const metadataNotice = getYoutubeMetadataNotice(item);
   const body = (
     <>
       <div className="flex items-center gap-1.5 flex-wrap">
@@ -58,9 +65,17 @@ function RiskItemCard({ item }: { item: RiskItem }) {
             {date}
           </span>
         )}
+        {metadataNotice && (
+          <span
+            className="inline-flex shrink-0 items-center rounded bg-amber-50 px-1.5 py-0.5 text-[10.5px] font-semibold text-amber-600"
+            title={metadataNotice}
+          >
+            {YOUTUBE_METADATA_EXPIRED_LABEL}
+          </span>
+        )}
       </div>
       <p className="mt-1.5 text-[13px] font-semibold leading-relaxed text-slate-900">
-        {item.title}
+        {displayTitle}
       </p>
       {item.critical_reason && (
         <p className="mt-1.5 rounded-lg bg-slate-50 px-2.5 py-2 text-[12px] leading-relaxed text-slate-600">
