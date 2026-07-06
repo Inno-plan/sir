@@ -17,6 +17,7 @@ import {
   Menu,
   X,
   TrendingUp,
+  Coins,
 } from 'lucide-react';
 import { SirSymbol } from '@/components/icons/SirSymbol';
 import { SirLogoIcon } from '@/components/icons/SirLogo.Icon';
@@ -39,6 +40,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: '리스크 관리', href: '/risk-reports', icon: ShieldAlert },
   { label: '유저 관리', href: '/users', icon: Users, roles: ['super_admin'] },
   { label: '모니터링', href: '/ops', icon: Activity, roles: ['super_admin'] },
+  { label: 'AI 사용량', href: '/ai-usage', icon: Coins, roles: ['super_admin'] },
   { label: '고객 지원', href: '/support', icon: MessageCircle },
   { label: '설정', href: '#', icon: Settings, disabled: true },
 ];
