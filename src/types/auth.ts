@@ -6,6 +6,10 @@ export interface AuthUser {
   companyName: string;
   avatarUrl: string | null;
   role: ProfileRole;
+  termsAgreedAt: string | null;
+  termsAgreedVersion: string | null;
+  privacyAgreedAt: string | null;
+  privacyAgreedVersion: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -17,6 +21,10 @@ export interface ProfileRow {
   company_name: string;
   avatar_url: string | null;
   role: ProfileRole;
+  terms_agreed_at: string | null;
+  terms_agreed_version: string | null;
+  privacy_agreed_at: string | null;
+  privacy_agreed_version: string | null;
   created_at: string;
   updated_at: string;
 }

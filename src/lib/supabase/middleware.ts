@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import type { Database } from '@/types/database.types';
 import { resolveUserReportPath } from '@/lib/auth/resolveLandingPath';
+import { isLegalPath } from '@/lib/legal/routes';
 
 export async function updateSession(request: NextRequest) {
   // /report-pdf — Playwright headless 가 init script injected session 으로 자체 setSession 하므로
@@ -42,9 +43,10 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isAuthPage = pathname.startsWith('/auth/login') || pathname.startsWith('/auth/signup');
   const isCallback = pathname.startsWith('/auth/callback');
+  const isLegalPage = isLegalPath(pathname);
 
   // 미인증 사용자 → 로그인 페이지로 리다이렉트
-  if (!user && !isAuthPage && !isCallback) {
+  if (!user && !isAuthPage && !isCallback && !isLegalPage) {
     const url = request.nextUrl.clone();
     url.pathname = '/auth/login';
     return NextResponse.redirect(url);
