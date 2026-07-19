@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { login } from '@/app/auth/actions';
 import { SirSymbol } from '@/components/icons/SirSymbol';
@@ -86,23 +87,23 @@ export default function LoginPage() {
 
         {/* 약관 링크 */}
         <div className="mt-6 flex items-center justify-center gap-3 text-xs text-text-muted">
-          <a
-            href="https://protective-wasabi-62e.notion.site/39006eadfe0e8076a985d765bee5bf86"
+          <Link
+            href="/legal/privacy"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-text-dark hover:underline transition-colors"
           >
             개인정보처리방침
-          </a>
+          </Link>
           <span className="text-border-light">|</span>
-          <a
-            href="https://protective-wasabi-62e.notion.site/39006eadfe0e8058bf86e140bdc01d3d?pvs=74"
+          <Link
+            href="/legal/terms"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-text-dark hover:underline transition-colors"
           >
             이용약관
-          </a>
+          </Link>
         </div>
       </div>
     </div>

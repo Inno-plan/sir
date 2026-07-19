@@ -22,6 +22,10 @@ export const getCurrentUser = cache(async (): Promise<AuthUser | null> => {
       companyName: profile.company_name,
       avatarUrl: profile.avatar_url,
       role: profile.role,
+      termsAgreedAt: profile.terms_agreed_at,
+      termsAgreedVersion: profile.terms_agreed_version,
+      privacyAgreedAt: profile.privacy_agreed_at,
+      privacyAgreedVersion: profile.privacy_agreed_version,
       createdAt: profile.created_at,
       updatedAt: profile.updated_at,
     };
@@ -34,6 +38,10 @@ export const getCurrentUser = cache(async (): Promise<AuthUser | null> => {
     companyName: user.user_metadata?.company_name ?? '',
     avatarUrl: null,
     role: 'user',
+    termsAgreedAt: null,
+    termsAgreedVersion: null,
+    privacyAgreedAt: null,
+    privacyAgreedVersion: null,
     createdAt: user.created_at,
     updatedAt: user.created_at,
   };

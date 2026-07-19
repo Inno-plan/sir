@@ -1297,7 +1297,11 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          privacy_agreed_at: string | null
+          privacy_agreed_version: string | null
           role: Database["public"]["Enums"]["profile_role"]
+          terms_agreed_at: string | null
+          terms_agreed_version: string | null
           updated_at: string
         }
         Insert: {
@@ -1306,7 +1310,11 @@ export type Database = {
           created_at?: string
           email: string
           id: string
+          privacy_agreed_at?: string | null
+          privacy_agreed_version?: string | null
           role?: Database["public"]["Enums"]["profile_role"]
+          terms_agreed_at?: string | null
+          terms_agreed_version?: string | null
           updated_at?: string
         }
         Update: {
@@ -1315,7 +1323,11 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          privacy_agreed_at?: string | null
+          privacy_agreed_version?: string | null
           role?: Database["public"]["Enums"]["profile_role"]
+          terms_agreed_at?: string | null
+          terms_agreed_version?: string | null
           updated_at?: string
         }
         Relationships: []

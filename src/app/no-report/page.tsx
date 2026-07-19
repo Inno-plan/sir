@@ -4,10 +4,16 @@ import { getCurrentUser } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserReportPath } from '@/lib/auth/resolveLandingPath';
 import { logout } from '@/app/auth/actions';
+import { ConsentGate } from '@/components/client/consent/ConsentGate';
+import { needsConsent } from '@/lib/legal/consts';
 
 export default async function NoReportPage() {
   const user = await getCurrentUser();
   if (!user) redirect('/auth/login');
+
+  if (user.role === 'user' && needsConsent(user)) {
+    return <ConsentGate />;
+  }
 
   // 혹시 접근 사이에 배정/발행이 생겼으면 곧바로 해당 보고서로 이동
   if (user.role === 'user') {

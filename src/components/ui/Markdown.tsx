@@ -1,6 +1,7 @@
 'use client';
 
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { CheckListIcon } from '@/components/icons/CheckListIcon';
 
 interface MdProps {
@@ -11,16 +12,29 @@ interface MdProps {
 
 const defaultComponents = (className: string) => ({
   h2: (props: { children?: React.ReactNode }) => (
-    <h3 className="text-sm font-bold text-slate-700 mt-4 mb-2 first:mt-0">{props.children}</h3>
+    <h2 className="text-sm font-bold text-slate-700 mt-4 mb-2 first:mt-0">{props.children}</h2>
   ),
   h3: (props: { children?: React.ReactNode }) => (
-    <h4 className="text-xs font-bold text-slate-600 mt-3 mb-1.5">{props.children}</h4>
+    <h3 className="text-xs font-bold text-slate-600 mt-3 mb-1.5">{props.children}</h3>
+  ),
+  h4: (props: { children?: React.ReactNode }) => (
+    <h4 className="mt-3 mb-1.5 text-xs font-semibold text-slate-500">{props.children}</h4>
   ),
   p: (props: { children?: React.ReactNode }) => (
     <p className={`text-sm leading-relaxed mb-2 last:mb-0 ${className}`}>{props.children}</p>
   ),
   strong: (props: { children?: React.ReactNode }) => (
     <strong className="font-semibold text-slate-800">{props.children}</strong>
+  ),
+  a: (props: { children?: React.ReactNode; href?: string }) => (
+    <a
+      href={props.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="font-medium text-text-dark underline underline-offset-2"
+    >
+      {props.children}
+    </a>
   ),
   ul: (props: { children?: React.ReactNode }) => (
     <ul className="list-disc list-inside space-y-1 text-sm ml-1">{props.children}</ul>
@@ -29,7 +43,9 @@ const defaultComponents = (className: string) => ({
     <ol className="list-decimal list-inside space-y-1 text-sm ml-1">{props.children}</ol>
   ),
   li: (props: { children?: React.ReactNode }) => (
-    <li className={`leading-relaxed ${className}`}>{props.children}</li>
+    <li className={`leading-relaxed [&>p]:inline [&>p]:mb-0 ${className}`}>
+      {props.children}
+    </li>
   ),
   table: (props: { children?: React.ReactNode }) => (
     <div className="overflow-x-auto my-2">
@@ -104,7 +120,9 @@ function ReputationMd({ children }: { children: string }) {
             <h3 className="text-sm font-semibold text-text-muted mb-2">{section.title}</h3>
           )}
           {section.body && (
-            <ReactMarkdown components={reputationSectionComponents}>{section.body}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={reputationSectionComponents}>
+              {section.body}
+            </ReactMarkdown>
           )}
         </div>
       ))}
@@ -117,5 +135,9 @@ export function Md({ children, type = 'stratagy', className = '' }: MdProps) {
     return <ReputationMd>{children}</ReputationMd>;
   }
 
-  return <ReactMarkdown components={defaultComponents(className)}>{children}</ReactMarkdown>;
+  return (
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={defaultComponents(className)}>
+      {children}
+    </ReactMarkdown>
+  );
 }
