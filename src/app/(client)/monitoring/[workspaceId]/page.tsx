@@ -318,8 +318,12 @@ export default function MonitoringPage() {
         {/* 탭 ───────────────────────────────────────────── */}
         <TabBar activeTab={activeTab} onChange={setActiveTab} />
 
+        <p className="text-xs font-medium leading-relaxed text-slate-900 lg:text-sm">
+          일자 클릭 시 그날의 상세한 평판 내역을 보실 수 있습니다.
+        </p>
+
         {/* 차트 — 탭별 분기. 한 화면에 한 탭만 노출. */}
-        <div className="flex flex-col gap-4">
+        <div className="-mt-3 flex flex-col gap-4">
           {activeTab === 'A' && (
             <PriceVolumeChart
               merged={merged}

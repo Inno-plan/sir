@@ -101,7 +101,13 @@ export function ChannelVolumePriceChart({
 
       <ChartCard
         kind="channel"
-        subtitle="뉴스·블로그·유튜브·커뮤니티 중 어디서 많이 언급되는지 주가와 함께 봅니다."
+        subtitle={
+          <>
+            어떤 채널이 주가에 영향을 많이 미치는지 확인할 수 있습니다.
+            <br />
+            채널별 긍정/부정 반응이 주가에 영향을 미치는지 확인할 수 있습니다.
+          </>
+        }
         loading={loading}
         empty={empty}
       >
