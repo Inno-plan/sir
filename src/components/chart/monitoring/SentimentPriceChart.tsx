@@ -18,6 +18,7 @@ import {
   SHARED_X_AXIS_PROPS,
 } from './shared';
 import { SentimentPriceTooltip } from './tooltips';
+import { PannableChartViewport, type ChartViewportControlProps } from './PannableChartViewport';
 
 interface Props {
   merged: MergedPoint[];
@@ -28,6 +29,8 @@ interface Props {
   setSelectedDate: (fn: (prev: string | null) => string | null) => void;
   loading: boolean;
   barSize: number;
+  dateTicks: string[];
+  viewport: ChartViewportControlProps;
 }
 
 /** 탭 B — 감정 분포(스택 area) + 주가(캔들). */
@@ -40,6 +43,8 @@ export function SentimentPriceChart({
   setSelectedDate,
   loading,
   barSize,
+  dateTicks,
+  viewport,
 }: Props) {
   const empty = sentimentSeries.every((d) => d.totalVolume === 0);
   // merged + sentimentSeries 같은 일자 매칭 (index 동기 가정 — 둘 다 같은 source 에서 파생)
@@ -51,7 +56,11 @@ export function SentimentPriceChart({
       loading={loading}
       empty={empty}
     >
-      <div className="h-[300px]">
+      <PannableChartViewport
+        {...viewport}
+        startDate={merged[0]?.date}
+        endDate={merged[merged.length - 1]?.date}
+      >
         <ChartCanvas width="100%">
           <ComposedChart
             data={data}
@@ -74,7 +83,7 @@ export function SentimentPriceChart({
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} yAxisId="sent" />
-            <XAxis {...SHARED_X_AXIS_PROPS} />
+            <XAxis {...SHARED_X_AXIS_PROPS} ticks={dateTicks} interval={0} />
             <YAxis
               yAxisId="sent"
               orientation="left"
@@ -150,7 +159,7 @@ export function SentimentPriceChart({
             {buildPinLine(selectedDate, 'price')}
           </ComposedChart>
         </ChartCanvas>
-      </div>
+      </PannableChartViewport>
       <ChartLegend
         items={[
           { color: SENTIMENT_COLOR.pos, label: '긍정' },
