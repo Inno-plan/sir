@@ -17,7 +17,11 @@ export default async function UserSupportPage({
 
   return (
     <div className="min-h-full bg-bg-light">
-      <SupportUserInquiries defaultCategory={sp.type} workspaceId={workspaceId} />
+      <SupportUserInquiries
+        key={sp.type ?? 'default'}
+        defaultCategory={sp.type}
+        workspaceId={workspaceId}
+      />
     </div>
   );
 }

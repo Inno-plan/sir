@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { addMonths, format, isSameDay } from 'date-fns';
 import { Modal } from '@/components/ui/Modal';
 import { AdminButton } from '@/components/ui/AdminButton';
+import { getContractPresetEndDate, getKstTodayDate } from '@/lib/contractDate';
 
 interface ContractPeriodPickerProps {
   startDate: Date | undefined;
@@ -65,15 +66,16 @@ export function ContractPeriodPicker({
   const [open, setOpen] = useState(false);
   const [pendingStart, setPendingStart] = useState<Date | undefined>(startDate);
   const [pendingEnd, setPendingEnd] = useState<Date | undefined>(endDate);
-  const [monthStart, setMonthStart] = useState<Date>(startDate ?? new Date());
-  const [monthEnd, setMonthEnd] = useState<Date>(endDate ?? addMonths(new Date(), 1));
+  const [monthStart, setMonthStart] = useState<Date>(startDate ?? getKstTodayDate());
+  const [monthEnd, setMonthEnd] = useState<Date>(endDate ?? addMonths(getKstTodayDate(), 1));
 
   const handleOpen = () => {
     if (disabled) return;
     setPendingStart(startDate);
     setPendingEnd(endDate);
-    setMonthStart(startDate ?? new Date());
-    setMonthEnd(endDate ?? addMonths(startDate ?? new Date(), 1));
+    const fallbackStart = startDate ?? getKstTodayDate();
+    setMonthStart(fallbackStart);
+    setMonthEnd(endDate ?? addMonths(fallbackStart, 1));
     setOpen(true);
   };
 
@@ -85,8 +87,8 @@ export function ContractPeriodPicker({
   const handleCancel = () => setOpen(false);
 
   const applyPreset = (months: number) => {
-    const base = pendingStart ?? new Date();
-    const end = addMonths(base, months);
+    const base = pendingStart ?? getKstTodayDate();
+    const end = getContractPresetEndDate(base, months);
     setPendingStart(base);
     setPendingEnd(end);
     setMonthStart(base);
@@ -95,17 +97,17 @@ export function ContractPeriodPicker({
 
   const handleStartSelect = (d: Date | undefined) => {
     setPendingStart(d);
-    // 시작일이 종료일 이후면 종료일 자동 보정 (+1개월)
-    if (d && pendingEnd && d >= pendingEnd) {
-      const next = addMonths(d, 1);
+    // 시작일이 종료일 이후면 포함 종료일을 1개월 계약 기준으로 자동 보정
+    if (d && pendingEnd && d > pendingEnd) {
+      const next = getContractPresetEndDate(d, 1);
       setPendingEnd(next);
       setMonthEnd(next);
     }
   };
 
   const handleEndSelect = (d: Date | undefined) => {
-    // 종료일은 시작일 이후로 제한 (DayPicker disabled 로도 막지만 방어)
-    if (d && pendingStart && d <= pendingStart) return;
+    // 시작일과 같은 날 종료하는 1일 계약도 허용한다.
+    if (d && pendingStart && d < pendingStart) return;
     setPendingEnd(d);
   };
 
@@ -120,7 +122,7 @@ export function ContractPeriodPicker({
   const activePresetMonths: number | null = (() => {
     if (!pendingStart || !pendingEnd) return null;
     for (const p of PRESETS) {
-      if (isSameDay(addMonths(pendingStart, p.months), pendingEnd)) return p.months;
+      if (isSameDay(getContractPresetEndDate(pendingStart, p.months), pendingEnd)) return p.months;
     }
     return null;
   })();
@@ -131,7 +133,7 @@ export function ContractPeriodPicker({
       : null;
 
   const canConfirm =
-    pendingStart !== undefined && pendingEnd !== undefined && pendingEnd > pendingStart;
+    pendingStart !== undefined && pendingEnd !== undefined && pendingEnd >= pendingStart;
 
   return (
     <>

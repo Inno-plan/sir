@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { addMonths } from 'date-fns';
 import { Check, X } from 'lucide-react';
 import { AdminButton } from '@/components/ui/AdminButton';
 import { Modal } from '@/components/ui/Modal';
@@ -13,6 +12,12 @@ import { useCreateUser } from '@/hooks/user/useUserMutation';
 import { type Tier } from '@/types/subscription';
 import type { ProfileRole } from '@/types/auth';
 import { getErrorMessage } from '@/lib/utils';
+import {
+  getContractPresetEndDate,
+  getKstTodayDate,
+  toContractEndIso,
+  toContractStartIso,
+} from '@/lib/contractDate';
 import {
   checkPassword,
   PASSWORD_PLACEHOLDER,
@@ -44,8 +49,10 @@ export function CreateUserModal({ open, onClose, myRole }: CreateUserModalProps)
   const [industry, setIndustry] = useState('');
   const [businessSummary, setBusinessSummary] = useState('');
   const [tier, setTier] = useState<Tier>('black_plus');
-  const [startDate, setStartDate] = useState<Date | undefined>(new Date());
-  const [endDate, setEndDate] = useState<Date | undefined>(addMonths(new Date(), 1));
+  const [startDate, setStartDate] = useState<Date | undefined>(() => getKstTodayDate());
+  const [endDate, setEndDate] = useState<Date | undefined>(() =>
+    getContractPresetEndDate(getKstTodayDate(), 1)
+  );
 
   // admin/super_admin 전용
   const [companyNameAdmin, setCompanyNameAdmin] = useState('');
@@ -60,7 +67,7 @@ export function CreateUserModal({ open, onClose, myRole }: CreateUserModalProps)
     email.length > 0 &&
     pwCheck.ok &&
     (role === 'user'
-      ? selectedCompany !== null && startDate !== undefined && endDate !== undefined && endDate > startDate
+      ? selectedCompany !== null && startDate !== undefined && endDate !== undefined && endDate >= startDate
       : companyNameAdmin.trim().length > 0);
 
   const reset = () => {
@@ -71,9 +78,9 @@ export function CreateUserModal({ open, onClose, myRole }: CreateUserModalProps)
     setIndustry('');
     setBusinessSummary('');
     setTier('black_plus');
-    const now = new Date();
-    setStartDate(now);
-    setEndDate(addMonths(now, 1));
+    const today = getKstTodayDate();
+    setStartDate(today);
+    setEndDate(getContractPresetEndDate(today, 1));
     setCompanyNameAdmin('');
   };
 
@@ -96,8 +103,8 @@ export function CreateUserModal({ open, onClose, myRole }: CreateUserModalProps)
               industry: industry.trim() || undefined,
               business_summary: businessSummary.trim() || undefined,
               tier,
-              subscription_start: startDate.toISOString(),
-              subscription_end: endDate.toISOString(),
+              subscription_start: toContractStartIso(startDate),
+              subscription_end: toContractEndIso(endDate),
             }
           : {
               email,
