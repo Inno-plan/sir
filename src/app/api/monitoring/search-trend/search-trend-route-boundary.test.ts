@@ -117,8 +117,10 @@ describe('search-trend RLS-before-service-role boundary', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.resetState();
-    process.env.NAVER_CLIENT_ID = 'naver-client-id';
-    process.env.NAVER_CLIENT_SECRET = 'naver-client-secret';
+    delete process.env.NAVER_CLIENT_ID;
+    delete process.env.NAVER_CLIENT_SECRET;
+    process.env.NAVER_API_HUB_CLIENT_ID = 'naver-api-hub-client-id';
+    process.env.NAVER_API_HUB_CLIENT_SECRET = 'naver-api-hub-client-secret';
     vi.stubGlobal('fetch', mocks.fetch);
   });
 

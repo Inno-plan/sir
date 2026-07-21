@@ -4,8 +4,8 @@ import { createClient as createAdminClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
-const DATALAB_URL = 'https://openapi.naver.com/v1/datalab/search';
-const DATALAB_TIMEOUT_MS = 15_000;
+const NAVER_API_HUB_URL = 'https://naverapihub.apigw.ntruss.com/search-trend/v1/search';
+const NAVER_API_HUB_TIMEOUT_MS = 15_000;
 
 interface Body {
   workspace_id: string;
@@ -49,7 +49,7 @@ function isTimeoutError(error: unknown): boolean {
  *
  * 1) Supabase RLS 로 워크스페이스 접근 권한 확인 + company_name 조회
  * 2) `monitoring_search_trends_cache` 에 today_kst row 있으면 cache hit → 반환
- * 3) miss 면 네이버 데이터랩 365일치 호출 → UPSERT → 반환
+ * 3) miss 면 네이버 API HUB 365일치 호출 → UPSERT → 반환
  *
  * 단일 ws 안에서 사용자 N명이 같은 날 호출해도 네이버 API 는 1회만 발생.
  * 동시 호출 race 시 두 번 호출될 수 있으나 UPSERT 가 last-write-wins 로 안정 (응답 동일).
@@ -63,11 +63,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '로그인이 필요합니다' }, { status: 401 });
   }
 
-  const clientId = process.env.NAVER_CLIENT_ID;
-  const clientSecret = process.env.NAVER_CLIENT_SECRET;
+  const clientId = process.env.NAVER_API_HUB_CLIENT_ID;
+  const clientSecret = process.env.NAVER_API_HUB_CLIENT_SECRET;
   if (!clientId || !clientSecret) {
     return NextResponse.json(
-      { error: 'NAVER_CLIENT_ID / NAVER_CLIENT_SECRET 미설정' },
+      { error: 'NAVER_API_HUB_CLIENT_ID / NAVER_API_HUB_CLIENT_SECRET 미설정' },
       { status: 500 },
     );
   }
@@ -141,8 +141,8 @@ export async function POST(req: NextRequest) {
     // 아래로 fall-through → 데이터랩 재호출 + UPSERT
   }
 
-  // 2) 캐시 miss → 네이버 데이터랩 365일 호출
-  // ⚠️ endDate 를 오늘(KST)로 보내면 데이터랩이 365일치 요청에서 마지막 2일을 잘라
+  // 2) 캐시 miss → 네이버 API HUB 365일 호출
+  // ⚠️ endDate 를 오늘(KST)로 보내면 API HUB가 365일치 요청에서 마지막 2일을 잘라
   // D-2 까지만 응답함 (짧은 기간 요청에선 D-1 까지 정상). 이유는 비공개 정책.
   // → endDate=어제(KST D-1) 로 한 칸 당겨서 365일치 요청하면 어제까지 모두 받음.
   const yesterdayMs = Date.now() + 9 * 60 * 60 * 1000 - 24 * 60 * 60 * 1000;
@@ -152,12 +152,12 @@ export async function POST(req: NextRequest) {
 
   let datalab: DatalabResponse;
   try {
-    const res = await fetch(DATALAB_URL, {
+    const res = await fetch(NAVER_API_HUB_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Naver-Client-Id': clientId,
-        'X-Naver-Client-Secret': clientSecret,
+        'X-NCP-APIGW-API-KEY-ID': clientId,
+        'X-NCP-APIGW-API-KEY': clientSecret,
       },
       body: JSON.stringify({
         startDate,
@@ -165,11 +165,11 @@ export async function POST(req: NextRequest) {
         timeUnit: 'date',
         keywordGroups: [{ groupName: keyword, keywords: [keyword] }],
       }),
-      signal: AbortSignal.timeout(DATALAB_TIMEOUT_MS),
+      signal: AbortSignal.timeout(NAVER_API_HUB_TIMEOUT_MS),
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
-      console.error('[search-trend] datalab', res.status, text.slice(0, 300));
+      console.error('[search-trend] naver api hub', res.status, text.slice(0, 300));
       // 네이버 실패 시 stale 캐시라도 있으면 반환 (degraded mode)
       if (cached) {
         return NextResponse.json({
@@ -182,7 +182,7 @@ export async function POST(req: NextRequest) {
         });
       }
       return NextResponse.json(
-        { error: `네이버 데이터랩 응답 ${res.status}` },
+        { error: `네이버 API HUB 응답 ${res.status}` },
         { status: 502 },
       );
     }
