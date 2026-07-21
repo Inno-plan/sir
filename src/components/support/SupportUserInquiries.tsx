@@ -29,6 +29,7 @@ const CATEGORY_BADGE_CLASS: Record<SupportCategory, string> = {
   feature: 'bg-violet-50 text-violet-700 ring-violet-100',
   bug: 'bg-red-50 text-red-700 ring-red-100',
   upgrade: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+  contract_extension: 'bg-blue-50 text-blue-700 ring-blue-100',
   other: 'bg-slate-100 text-slate-600 ring-slate-200',
 };
 
@@ -84,6 +85,7 @@ export function SupportUserInquiries({
   const [writeOpen, setWriteOpen] = useState(Boolean(defaultCategory));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+
   const {
     data: inquiries = [],
     isLoading,
@@ -229,6 +231,7 @@ export function SupportUserInquiries({
 
       <Modal open={writeOpen} onClose={() => setWriteOpen(false)} title="문의 작성" size="xl">
         <SupportInquiryForm
+          key={defaultCategory ?? 'default'}
           variant="modal"
           defaultCategory={defaultCategory}
           workspaceId={workspaceId}

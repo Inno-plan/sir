@@ -22,6 +22,11 @@ export const SUPPORT_CATEGORY_OPTIONS = [
       'Armor, Booster 서비스로 업그레이드를 원하시면 문의를 남겨주세요.',
   },
   {
+    id: 'contract_extension',
+    label: '계약 연장',
+    placeholder: '계약 연장을 원하는 기간과 문의 내용을 작성해주세요.',
+  },
+  {
     id: 'other',
     label: '기타',
     placeholder: '이용방법, 정산, 결제, 탈퇴 등 어떤 의견이든 부담 없이 문의해주세요.',

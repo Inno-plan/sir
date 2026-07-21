@@ -2,14 +2,13 @@
 
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { CalendarClock } from 'lucide-react';
 import { useDismissSubscriptionExpiryNotice } from '@/hooks/subscription/useSubscriptionMutation';
 import { useSubscriptionExpiryNoticeDismissal } from '@/hooks/subscription/useSubscriptionQuery';
 import { useWorkspaceSubscription } from '@/hooks/workspace/useWorkspaceQuery';
 import { getContractSummary, isContractExpiryNoticeDismissed } from '@/lib/subscription';
 import { getContractEndDate } from '@/lib/contractDate';
-import { openContactPage } from '@/lib/contact';
 import { getErrorMessage } from '@/lib/utils';
 import type { AuthUser } from '@/types/auth';
 import { Button } from '@/components/ui/Button';
@@ -21,6 +20,7 @@ interface ContractExpiryNoticeProps {
 
 export function ContractExpiryNotice({ user }: ContractExpiryNoticeProps) {
   const params = useParams();
+  const router = useRouter();
   const workspaceId = typeof params?.workspaceId === 'string' ? params.workspaceId : '';
   const [closedNoticeKey, setClosedNoticeKey] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -79,12 +79,12 @@ export function ContractExpiryNotice({ user }: ContractExpiryNoticeProps) {
   };
 
   const contactAboutContract = () => {
-    openContactPage();
     if (hideUntilExpiry) {
       void dismissUntilExpiry();
-      return;
+    } else {
+      closeForVisit();
     }
-    closeForVisit();
+    router.push(`/support/${encodeURIComponent(workspaceId)}?type=contract_extension`);
   };
 
   return (
