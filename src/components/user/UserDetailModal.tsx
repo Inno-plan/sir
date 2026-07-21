@@ -27,6 +27,14 @@ import { TIER_LABELS, type Tier } from '@/types/subscription';
 import type { UserProfile, WorkspaceMember, WorkspaceTokens } from '@/lib/api/userApi';
 import type { Subscription, SubscriptionStatus } from '@/lib/api/subscriptionApi';
 import type { ProfileRole } from '@/types/auth';
+import {
+  getContractEndDate,
+  getContractPresetEndDate,
+  getContractStartDate,
+  getKstTodayDate,
+  toContractEndIso,
+  toContractStartIso,
+} from '@/lib/contractDate';
 
 type SubMode =
   | 'idle'
@@ -136,18 +144,16 @@ export function UserDetailModal({
     if (mode === 'change_tier' && sub) {
       setFormTier(sub.tier);
     } else if (mode === 'extend' && sub) {
-      setFormEnd(parseISO(sub.ended_at));
+      setFormEnd(getContractEndDate(sub.ended_at));
     } else if (mode === 'correct' && sub) {
       setFormTier(sub.tier);
-      setFormStart(parseISO(sub.started_at));
-      setFormEnd(parseISO(sub.ended_at));
+      setFormStart(getContractStartDate(sub.started_at));
+      setFormEnd(getContractEndDate(sub.ended_at));
     } else if (mode === 'new') {
-      const today = new Date();
-      const oneYearLater = new Date(today);
-      oneYearLater.setFullYear(today.getFullYear() + 1);
+      const today = getKstTodayDate();
       setFormTier('black_plus');
       setFormStart(today);
-      setFormEnd(oneYearLater);
+      setFormEnd(getContractPresetEndDate(today, 12));
     }
     setSubMode(mode);
   };
@@ -258,7 +264,7 @@ export function UserDetailModal({
     try {
       await extendSub.mutateAsync({
         workspaceId: userWorkspaceId,
-        newEndedAt: formEnd.toISOString(),
+        newEndedAt: toContractEndIso(formEnd),
       });
       toast.success('계약 기간이 연장되었습니다.');
       resetSubForm();
@@ -273,8 +279,8 @@ export function UserDetailModal({
       await renewSub.mutateAsync({
         workspaceId: userWorkspaceId,
         newTier: formTier,
-        newStartedAt: formStart.toISOString(),
-        newEndedAt: formEnd.toISOString(),
+        newStartedAt: toContractStartIso(formStart),
+        newEndedAt: toContractEndIso(formEnd),
       });
       toast.success('새 구독이 등록되었습니다.');
       resetSubForm();
@@ -311,8 +317,8 @@ export function UserDetailModal({
       await correctSub.mutateAsync({
         subscriptionId: sub.id,
         tier: formTier,
-        startedAt: formStart.toISOString(),
-        endedAt: formEnd.toISOString(),
+        startedAt: toContractStartIso(formStart),
+        endedAt: toContractEndIso(formEnd),
       });
       toast.success('구독 정보가 정정되었습니다.');
       resetSubForm();
@@ -397,12 +403,12 @@ export function UserDetailModal({
                 <p className="text-sm text-slate-700">
                   <span className="font-semibold">{TIER_LABELS[sub.tier]}</span>
                   {' · '}
-                  {format(parseISO(sub.started_at), 'yyyy-MM-dd')}
+                  {format(getContractStartDate(sub.started_at), 'yyyy-MM-dd')}
                   {' ~ '}
-                  {format(parseISO(sub.ended_at), 'yyyy-MM-dd')}
+                  {format(getContractEndDate(sub.ended_at), 'yyyy-MM-dd')}
                   {subStatus === 'scheduled' && (
                     <span className="ml-2 inline-block rounded-full bg-amber-100 text-amber-700 text-[11px] px-2 py-0.5 font-medium align-middle">
-                      {format(parseISO(sub.started_at), 'M월 d일')} 시작 예정
+                      {format(getContractStartDate(sub.started_at), 'M월 d일')} 시작 예정
                     </span>
                   )}
                 </p>
@@ -504,7 +510,7 @@ export function UserDetailModal({
                     <p className="text-xs text-slate-500">
                       현재 종료일{' '}
                       <span className="font-semibold">
-                        {format(parseISO(activeSub.ended_at), 'yyyy-MM-dd')}
+                        {format(getContractEndDate(activeSub.ended_at), 'yyyy-MM-dd')}
                       </span>
                       {' '}이후로만 연장 가능합니다.
                     </p>
@@ -781,7 +787,7 @@ export function UserDetailModal({
       title="예약 구독 취소"
       message={
         sub
-          ? `${TIER_LABELS[sub.tier]} · ${format(parseISO(sub.started_at), 'yyyy-MM-dd')} 시작 예약을 취소(삭제)합니다. 되돌릴 수 없습니다.`
+          ? `${TIER_LABELS[sub.tier]} · ${format(getContractStartDate(sub.started_at), 'yyyy-MM-dd')} 시작 예약을 취소(삭제)합니다. 되돌릴 수 없습니다.`
           : ''
       }
       confirmLabel="예약 취소"
@@ -813,7 +819,12 @@ function DateInput({
         disabled={disabled}
         onChange={(e) => {
           const v = e.target.value;
-          onChange(v ? new Date(`${v}T00:00:00+09:00`) : undefined);
+          if (!v) {
+            onChange(undefined);
+            return;
+          }
+          const [year, month, day] = v.split('-').map(Number);
+          onChange(new Date(year, month - 1, day));
         }}
         className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-slate-400"
       />

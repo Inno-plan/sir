@@ -3,6 +3,7 @@
 import { format, parseISO } from 'date-fns';
 import { TIER_LABELS } from '@/types/subscription';
 import { getContractSummary, CONTRACT_STATUS_STYLE } from '@/lib/subscription';
+import { getContractEndDate, getContractStartDate } from '@/lib/contractDate';
 import type { UserWithDetails, WorkspaceTokens } from '@/lib/api/userApi';
 
 interface CustomerTableProps {
@@ -50,7 +51,7 @@ export function CustomerTable({ users, tokens, onSelect }: CustomerTableProps) {
           const summary = getContractSummary(sub);
           const style = CONTRACT_STATUS_STYLE[summary.status];
           const periodLabel = sub
-            ? `${format(parseISO(sub.started_at), 'yy.MM.dd')} ~ ${format(parseISO(sub.ended_at), 'yy.MM.dd')}`
+            ? `${format(getContractStartDate(sub.started_at), 'yy.MM.dd')} ~ ${format(getContractEndDate(sub.ended_at), 'yy.MM.dd')}`
             : '-';
           const remainLabel =
             summary.status === 'scheduled' && summary.daysUntilStart !== null

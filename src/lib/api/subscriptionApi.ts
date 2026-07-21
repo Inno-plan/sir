@@ -16,12 +16,20 @@ export interface Subscription {
   created_at: string;
 }
 
+export interface SubscriptionExpiryNoticeDismissal {
+  profile_id: string;
+  subscription_id: string;
+  acknowledged_ended_at: string;
+  dismissed_until: string;
+  dismissed_at: string;
+}
+
 /** 워크스페이스의 현재 활성 구독 조회 — started_at <= NOW < ended_at 인 단일 row */
 export async function getActiveSubscription(
   workspaceId: string,
 ): Promise<Subscription | null> {
   const nowIso = new Date().toISOString();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('subscriptions')
     .select('*')
     .eq('workspace_id', workspaceId)
@@ -29,7 +37,51 @@ export async function getActiveSubscription(
     .gt('ended_at', nowIso)
     .maybeSingle();
 
+  if (error) throw error;
+
   return (data as Subscription | null) ?? null;
+}
+
+/** 사용자별 계약 만료 안내 숨김 상태 조회 */
+export async function getSubscriptionExpiryNoticeDismissal(input: {
+  profileId: string;
+  subscriptionId: string;
+}): Promise<SubscriptionExpiryNoticeDismissal | null> {
+  const { data, error } = await supabase
+    .from('subscription_expiry_notice_dismissals')
+    .select('*')
+    .eq('profile_id', input.profileId)
+    .eq('subscription_id', input.subscriptionId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+/** 현재 계약 종료일까지 만료 안내 숨김 */
+export async function dismissSubscriptionExpiryNotice(input: {
+  profileId: string;
+  subscriptionId: string;
+  endedAt: string;
+}): Promise<SubscriptionExpiryNoticeDismissal> {
+  const nowIso = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('subscription_expiry_notice_dismissals')
+    .upsert(
+      {
+        profile_id: input.profileId,
+        subscription_id: input.subscriptionId,
+        acknowledged_ended_at: input.endedAt,
+        dismissed_until: input.endedAt,
+        dismissed_at: nowIso,
+      },
+      { onConflict: 'profile_id,subscription_id' },
+    )
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
 }
 
 export type SubscriptionStatus = 'active' | 'scheduled';

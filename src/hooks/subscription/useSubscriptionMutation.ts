@@ -7,6 +7,7 @@ import {
   cancelSubscription,
   correctSubscription,
   deleteScheduledSubscription,
+  dismissSubscriptionExpiryNotice,
 } from '@/lib/api/subscriptionApi';
 import { subscriptionKeys } from '@/hooks/subscription/useSubscriptionQuery';
 import { userKeys } from '@/hooks/user/useUserQuery';
@@ -76,6 +77,22 @@ export function useDeleteScheduledSubscription(workspaceId: string | undefined) 
     mutationFn: deleteScheduledSubscription,
     onSuccess: () => {
       if (workspaceId) invalidate(workspaceId);
+    },
+  });
+}
+
+export function useDismissSubscriptionExpiryNotice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: dismissSubscriptionExpiryNotice,
+    onSuccess: (dismissal) => {
+      queryClient.setQueryData(
+        subscriptionKeys.expiryNoticeDismissal(
+          dismissal.profile_id,
+          dismissal.subscription_id,
+        ),
+        dismissal,
+      );
     },
   });
 }

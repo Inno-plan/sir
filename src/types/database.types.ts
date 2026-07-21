@@ -1166,6 +1166,45 @@ export type Database = {
           },
         ]
       }
+      subscription_expiry_notice_dismissals: {
+        Row: {
+          acknowledged_ended_at: string
+          dismissed_at: string
+          dismissed_until: string
+          profile_id: string
+          subscription_id: string
+        }
+        Insert: {
+          acknowledged_ended_at: string
+          dismissed_at?: string
+          dismissed_until: string
+          profile_id: string
+          subscription_id: string
+        }
+        Update: {
+          acknowledged_ended_at?: string
+          dismissed_at?: string
+          dismissed_until?: string
+          profile_id?: string
+          subscription_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_expiry_notice_dismissals_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_expiry_notice_dismissals_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           created_at: string
