@@ -76,13 +76,13 @@ export function ConsentGate() {
               checked={termsAgreed}
               onChange={setTermsAgreed}
               label="이용약관 동의"
-              href="/legal/terms"
+              href="https://sir-term.notion.site/"
             />
             <ConsentItem
               checked={privacyAgreed}
               onChange={setPrivacyAgreed}
               label="개인정보처리방침 동의"
-              href="/legal/privacy"
+              href="https://sir-private.notion.site/"
             />
           </div>
 

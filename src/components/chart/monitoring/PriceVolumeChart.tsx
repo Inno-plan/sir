@@ -42,7 +42,13 @@ export function PriceVolumeChart({
   return (
     <ChartCard
       kind="volume"
-      subtitle="매일 얼마나 많은 평판 데이터가 쌓였는지 주가와 함께 봅니다."
+      subtitle={
+        <>
+          매일 생산된 평판 데이터와 주가 간의 상관관계를 확인할 수 있습니다.
+          <br />
+          주가가 상승/하락한 날 어떤 여론이 지배적이었는지 확인할 수 있습니다.
+        </>
+      }
       loading={loading}
       empty={!hasPrice}
     >

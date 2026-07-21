@@ -9,7 +9,7 @@ export function ReportDisclaimer() {
       </p>
       <div className="mt-3 flex items-center lg:justify-center gap-3 text-[10px] lg:text-xs text-text-muted">
         <a
-          href="https://protective-wasabi-62e.notion.site/39006eadfe0e8076a985d765bee5bf86"
+          href="https://sir-private.notion.site/"
           target="_blank"
           rel="noopener noreferrer"
           className="hover:text-text-dark hover:underline transition-colors"
@@ -18,7 +18,7 @@ export function ReportDisclaimer() {
         </a>
         <span className="text-border-light">|</span>
         <a
-          href="https://protective-wasabi-62e.notion.site/39006eadfe0e8058bf86e140bdc01d3d?pvs=74"
+          href="https://sir-term.notion.site/"
           target="_blank"
           rel="noopener noreferrer"
           className="hover:text-text-dark hover:underline transition-colors"

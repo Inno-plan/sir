@@ -236,7 +236,7 @@ export function ChartCard({
   empty,
 }: {
   kind?: ChartKind;
-  subtitle?: string;
+  subtitle?: ReactNode;
   children: ReactNode;
   loading?: boolean;
   empty?: boolean;

@@ -47,7 +47,7 @@ export function SentimentPriceChart({
   return (
     <ChartCard
       kind="sentiment"
-      subtitle="긍정·중립·부정 비율이 주가와 어떻게 맞물리는지 확인합니다."
+      subtitle="수집된 평판의 긍정·중립·부정 비율이 주가 흐름과 맞물리는지 확인할 수 있습니다."
       loading={loading}
       empty={empty}
     >

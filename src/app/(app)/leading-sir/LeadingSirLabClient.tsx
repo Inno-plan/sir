@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
+  Filter,
   Info,
   Minus,
   RefreshCw,
@@ -16,6 +17,17 @@ import { ChartCanvas } from '@/components/chart/ChartCanvas';
 import { createClient } from '@/lib/supabase/client';
 
 const SIGNAL_Z_THRESHOLD = 1;
+
+// 가격추종 필터 비교(실험) — sir-backend scripts/backtest_sir_variants.py V8_price_znorm 재현.
+// 프로덕션 leading_momentum_z 는 그대로 두고, 이미 저장된 leading_momentum_3d 시계열 위에서
+// FE 단독으로 "억제 후 z" 를 다시 계산해 토글로 비교만 함 (DB 쓰기 없음).
+// 2026-07-20 실데이터 재백테스트: 관찰 3종목 강신호 21건 적중 62% 스프레드 +6.69%p IC +0.268(p<0.05) /
+// pooled 12개 워크스페이스 강신호 54건 적중 53% 스프레드 +2.54%p IC +0.205(p<0.05).
+// 데이터 누적에 따라 주기적 재검증 필요 — 위 숫자는 위 스크립트를 다시 돌려 갱신할 것.
+const PRICE_CHASE_LOOKBACK_DAYS = 3; // 거래일 기준
+const PRICE_CHASE_THRESHOLD = 0.05; // 3거래일 ±5% 이상 동방향이면 '추종'으로 억제
+const PRICE_FILTER_Z_WINDOW = 30; // sir-backend LEADING_Z_WINDOW 와 동일
+const PRICE_FILTER_Z_MIN = 10; // sir-backend LEADING_Z_MIN 과 동일
 
 const RANGE_OPTIONS = [
   { days: 30, label: '30일' },
@@ -253,6 +265,58 @@ async function fetchLeadingSeries(workspaceId: string, days: number): Promise<Le
       intradayChangePct,
     };
   });
+}
+
+/** 가격추종 필터 비교(실험): 이미 fetch 된 momentum/종가 시계열만으로 재계산.
+ * date → 필터 적용 후 z (억제된 날/워밍업은 null). 원본 leading_sir/momentum 은 건드리지 않음.
+ * 주의: 조회 기간(rangeDays) 밖 데이터는 안 보이므로, 기간 시작 근처 며칠은
+ * 직전 3거래일 종가 부족으로 가격추종 필터가 적용되지 않을 수 있음(백엔드는 전체 히스토리 사용).
+ */
+function computePriceFilteredSignal(rows: LeadingChartPoint[]): Map<string, number | null> {
+  const tradingDays = rows
+    .filter((row): row is LeadingChartPoint & { closePrice: number } => row.closePrice != null)
+    .map((row) => ({ date: row.fullDate, close: row.closePrice }));
+  const tradingIndexByDate = new Map(tradingDays.map((t, i) => [t.date, i]));
+
+  const result = new Map<string, number | null>();
+  const momentumHistory: number[] = [];
+
+  for (const row of rows) {
+    const m = row.momentum;
+    if (m == null) continue;
+
+    let chased = false;
+    const idx = tradingIndexByDate.get(row.fullDate);
+    if (idx != null && idx >= PRICE_CHASE_LOOKBACK_DAYS) {
+      const prevClose = tradingDays[idx - PRICE_CHASE_LOOKBACK_DAYS].close;
+      const curClose = tradingDays[idx].close;
+      if (prevClose) {
+        const ret3 = curClose / prevClose - 1;
+        if (Math.abs(ret3) >= PRICE_CHASE_THRESHOLD && Math.sign(ret3) === Math.sign(m) && m !== 0) {
+          chased = true;
+        }
+      }
+    }
+
+    if (chased) {
+      momentumHistory.push(m); // z 분모 누적은 억제 여부와 무관 (sir-backend V8 과 동일)
+      result.set(row.fullDate, null);
+      continue;
+    }
+
+    const window = momentumHistory.slice(-PRICE_FILTER_Z_WINDOW);
+    let z: number | null = null;
+    if (window.length >= PRICE_FILTER_Z_MIN) {
+      const mean = window.reduce((a, b) => a + b, 0) / window.length;
+      const variance = window.reduce((a, b) => a + (b - mean) ** 2, 0) / window.length;
+      const std = Math.sqrt(variance);
+      if (std > 0) z = Math.round((m / std) * 100) / 100;
+    }
+    momentumHistory.push(m);
+    result.set(row.fullDate, z);
+  }
+
+  return result;
 }
 
 function StatCard({
@@ -703,6 +767,7 @@ function SignalHistoryTable({ rows }: { rows: LeadingChartPoint[] }) {
 export function LeadingSirLabClient({ assignedWorkspaceIds }: LeadingSirLabClientProps) {
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>('');
   const [rangeDays, setRangeDays] = useState<(typeof RANGE_OPTIONS)[number]['days']>(90);
+  const [priceFilterOn, setPriceFilterOn] = useState(false);
 
   const workspacesQuery = useQuery({
     queryKey: ['leading-sir-lab', 'workspaces', assignedWorkspaceIds?.join(',') ?? 'all'],
@@ -720,27 +785,42 @@ export function LeadingSirLabClient({ assignedWorkspaceIds }: LeadingSirLabClien
   });
 
   const rows = seriesQuery.data ?? EMPTY_CHART_POINTS;
+
+  const filteredSignalByDate = useMemo(
+    () => (priceFilterOn ? computePriceFilteredSignal(rows) : null),
+    [rows, priceFilterOn]
+  );
+  // effectiveRows: 필터 OFF 면 rows 그대로, ON 이면 momentumZ/signalType 만 재계산본으로 교체.
+  // leadingSir/momentum/종가 등 나머지 필드는 항상 원본 값(변경 없음).
+  const effectiveRows = useMemo(() => {
+    if (!filteredSignalByDate) return rows;
+    return rows.map((row) => {
+      const z = filteredSignalByDate.get(row.fullDate) ?? null;
+      return { ...row, momentumZ: z, signalType: getSignalType(z) };
+    });
+  }, [rows, filteredSignalByDate]);
+
   const latestRow = useMemo(
     () =>
-      [...rows]
+      [...effectiveRows]
         .reverse()
         .find((row) => row.leadingSir != null || row.momentum != null || row.closePrice != null) ??
       null,
-    [rows]
+    [effectiveRows]
   );
   const latestSignalRow = useMemo(
-    () => [...rows].reverse().find((row) => row.momentumZ != null) ?? null,
-    [rows]
+    () => [...effectiveRows].reverse().find((row) => row.momentumZ != null) ?? null,
+    [effectiveRows]
   );
   const priceChangePct = latestRow?.closeChangePct ?? null;
 
   const signalStats = useMemo(() => {
-    const withSignal = rows.filter((row) => row.momentumZ != null);
+    const withSignal = effectiveRows.filter((row) => row.momentumZ != null);
     const positive = withSignal.filter((row) => row.signalType === 'positive').length;
     const negative = withSignal.filter((row) => row.signalType === 'negative').length;
     const weak = withSignal.filter((row) => row.signalType === 'weak').length;
     return { total: withSignal.length, positive, negative, weak };
-  }, [rows]);
+  }, [effectiveRows]);
 
   const isLoading = workspacesQuery.isPending || (!!effectiveWorkspaceId && seriesQuery.isPending);
   const isError = workspacesQuery.isError || seriesQuery.isError;
@@ -799,6 +879,18 @@ export function LeadingSirLabClient({ assignedWorkspaceIds }: LeadingSirLabClien
             ))}
             <button
               type="button"
+              onClick={() => setPriceFilterOn((v) => !v)}
+              className={`inline-flex h-10 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition-colors ${
+                priceFilterOn
+                  ? 'border-indigo-200 bg-indigo-600 text-white hover:bg-indigo-700'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <Filter size={14} />
+              가격추종 필터(실험)
+            </button>
+            <button
+              type="button"
               onClick={() => seriesQuery.refetch()}
               disabled={!effectiveWorkspaceId || seriesQuery.isFetching}
               className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -814,11 +906,30 @@ export function LeadingSirLabClient({ assignedWorkspaceIds }: LeadingSirLabClien
         <div className="flex gap-2">
           <Info size={16} className="mt-0.5 shrink-0" />
           <p>
-            이 지표는 통계적 경향(z 정규화 강신호 기준 방향 적중률 약 65%) 확인용이며 투자 조언이
-            아닙니다. 강신호는 평소 변동의 1배 이상(|z|≥1)일 때만 표시합니다.
+            이 지표는 통계적 경향 확인용이며 투자 조언이 아닙니다. 강신호는 평소 변동의 1배
+            이상(|z|≥1)일 때만 표시합니다. z 정규화 강신호 방향 적중률은 관찰 3종목 기준 약
+            64%지만, 전체 워크스페이스로 넓히면 약 58%로 baseline(무보정 57%)과 큰 차이가 없어
+            종목별 편차가 큽니다(2026-07-20 재검증, sir-backend scripts/backtest_sir_variants.py).
           </p>
         </div>
       </div>
+
+      {priceFilterOn && (
+        <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
+          <div className="flex gap-2">
+            <Filter size={16} className="mt-0.5 shrink-0" />
+            <p>
+              가격추종 필터(실험) 적용 중: 직전 3거래일 주가가 이미 신호와 같은 방향으로 ±5%
+              이상 움직인 날은 &apos;추종&apos;으로 보고 강신호에서 뺀 뒤 z를 다시 계산합니다.
+              DB에는 저장되지 않는 이 화면 전용 재계산입니다. 2026-07-20 실데이터 재백테스트: 관찰
+              3종목 강신호 21건 중 적중 62% · 스프레드 +6.69%p · IC +0.268(p&lt;0.05) / 전체 12개
+              워크스페이스 강신호 54건 중 적중 53% · 스프레드 +2.54%p · IC +0.205(p&lt;0.05). 기존
+              방식보다 통계적으로는 더 유의하지만 강신호 건수가 절반 이하로 줄고, 종목에 따라
+              신호가 거의 안 뜰 수 있습니다(관찰 3종목 중 솔루스첨단소재는 표본 부족).
+            </p>
+          </div>
+        </div>
+      )}
 
       {isError && (
         <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-4 text-sm font-semibold text-rose-700">
@@ -888,18 +999,25 @@ export function LeadingSirLabClient({ assignedWorkspaceIds }: LeadingSirLabClien
               운영 SIR은 별도 색 선으로 보고, 주가는 캔들로 하루 등락률을 확인합니다.
             </p>
           </div>
-          {selectedWorkspace && (
-            <span className="inline-flex w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-              {selectedWorkspace.company_name} · {selectedWorkspace.ticker}
-            </span>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {priceFilterOn && (
+              <span className="inline-flex w-fit items-center gap-1 rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-700">
+                <Filter size={12} /> 가격추종 필터 적용
+              </span>
+            )}
+            {selectedWorkspace && (
+              <span className="inline-flex w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                {selectedWorkspace.company_name} · {selectedWorkspace.ticker}
+              </span>
+            )}
+          </div>
         </div>
         {isLoading ? (
           <div className="flex h-96 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-400">
             데이터를 불러오는 중입니다...
           </div>
         ) : (
-          <LeadingMomentumChart data={rows} />
+          <LeadingMomentumChart data={effectiveRows} />
         )}
         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-semibold text-slate-500">
           <span className="inline-flex items-center gap-1.5">
@@ -926,7 +1044,7 @@ export function LeadingSirLabClient({ assignedWorkspaceIds }: LeadingSirLabClien
         </div>
       </section>
 
-      <SignalHistoryTable rows={rows} />
+      <SignalHistoryTable rows={effectiveRows} />
     </main>
   );
 }
