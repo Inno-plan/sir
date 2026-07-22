@@ -1,4 +1,6 @@
-import { addMonths, subDays } from 'date-fns';
+import { addDays, addMonths, subDays } from 'date-fns';
+
+export const TRIAL_DURATION_DAYS = 10;
 
 const KST_TIME_ZONE = 'Asia/Seoul';
 
@@ -69,4 +71,9 @@ export function toContractEndIso(endDate: Date): string {
 /** n개월 계약의 포함 종료일. DB의 exclusive 경계보다 하루 앞선 날짜다. */
 export function getContractPresetEndDate(startDate: Date, months: number): Date {
   return subDays(addMonths(startDate, months), 1);
+}
+
+/** 무료 체험의 UI 포함 종료일. 시작일을 포함해 총 10일을 제공한다. */
+export function getTrialEndDate(startDate: Date): Date {
+  return addDays(startDate, TRIAL_DURATION_DAYS - 1);
 }

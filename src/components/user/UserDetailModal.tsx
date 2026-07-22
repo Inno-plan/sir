@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/Modal';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { ContractPeriodPicker } from '@/components/ui/ContractPeriodPicker';
 import { TierPicker } from '@/components/user/TierPicker';
+import { ContractTypePicker } from '@/components/user/ContractTypePicker';
 import { PasswordResetSection } from '@/components/user/PasswordResetSection';
 import { useUpdateUser, useUpdateWorkspaceTokens } from '@/hooks/user/useUserMutation';
 import { useCurrentOrUpcomingSubscription } from '@/hooks/subscription/useSubscriptionQuery';
@@ -23,7 +24,12 @@ import {
   useDeleteScheduledSubscription,
 } from '@/hooks/subscription/useSubscriptionMutation';
 import { ROLE_LABEL } from '@/constants/role';
-import { TIER_LABELS, type Tier } from '@/types/subscription';
+import {
+  CONTRACT_TYPE_LABELS,
+  TIER_LABELS,
+  type ContractType,
+  type Tier,
+} from '@/types/subscription';
 import type { UserProfile, WorkspaceMember, WorkspaceTokens } from '@/lib/api/userApi';
 import type { Subscription, SubscriptionStatus } from '@/lib/api/subscriptionApi';
 import type { ProfileRole } from '@/types/auth';
@@ -32,6 +38,8 @@ import {
   getContractPresetEndDate,
   getContractStartDate,
   getKstTodayDate,
+  getTrialEndDate,
+  TRIAL_DURATION_DAYS,
   toContractEndIso,
   toContractStartIso,
 } from '@/lib/contractDate';
@@ -73,6 +81,7 @@ export function UserDetailModal({
   // 구독 작업 mode + 작업별 입력값
   const [subMode, setSubMode] = useState<SubMode>('idle');
   const [formTier, setFormTier] = useState<Tier | undefined>(undefined);
+  const [formContractType, setFormContractType] = useState<ContractType>('paid');
   const [formStart, setFormStart] = useState<Date | undefined>(undefined);
   const [formEnd, setFormEnd] = useState<Date | undefined>(undefined);
 
@@ -136,6 +145,7 @@ export function UserDetailModal({
   const resetSubForm = () => {
     setSubMode('idle');
     setFormTier(undefined);
+    setFormContractType('paid');
     setFormStart(undefined);
     setFormEnd(undefined);
   };
@@ -147,15 +157,46 @@ export function UserDetailModal({
       setFormEnd(getContractEndDate(sub.ended_at));
     } else if (mode === 'correct' && sub) {
       setFormTier(sub.tier);
-      setFormStart(getContractStartDate(sub.started_at));
+      setFormContractType(sub.contract_type);
+      setFormStart(
+        getContractStartDate(
+          sub.contract_type === 'trial' && sub.trial_started_at
+            ? sub.trial_started_at
+            : sub.started_at,
+        ),
+      );
       setFormEnd(getContractEndDate(sub.ended_at));
     } else if (mode === 'new') {
       const today = getKstTodayDate();
       setFormTier('black_plus');
+      setFormContractType('paid');
       setFormStart(today);
       setFormEnd(getContractPresetEndDate(today, 12));
     }
     setSubMode(mode);
+  };
+
+  const handleContractTypeChange = (next: ContractType) => {
+    setFormContractType(next);
+    if (next !== 'trial') return;
+
+    const persistedTrialStart = sub?.trial_started_at
+      ? getContractStartDate(sub.trial_started_at)
+      : undefined;
+    const trialStart = persistedTrialStart ?? formStart ?? getKstTodayDate();
+    setFormStart(trialStart);
+    setFormEnd(getTrialEndDate(trialStart));
+  };
+
+  const handleSubscriptionPeriodChange = ({
+    start,
+    end,
+  }: {
+    start: Date | undefined;
+    end: Date | undefined;
+  }) => {
+    setFormStart(start);
+    setFormEnd(formContractType === 'trial' && start ? getTrialEndDate(start) : end);
   };
 
   const filteredWs = useMemo(() => {
@@ -281,6 +322,7 @@ export function UserDetailModal({
         newTier: formTier,
         newStartedAt: toContractStartIso(formStart),
         newEndedAt: toContractEndIso(formEnd),
+        contractType: formContractType,
       });
       toast.success('새 구독이 등록되었습니다.');
       resetSubForm();
@@ -319,6 +361,7 @@ export function UserDetailModal({
         tier: formTier,
         startedAt: toContractStartIso(formStart),
         endedAt: toContractEndIso(formEnd),
+        contractType: formContractType,
       });
       toast.success('구독 정보가 정정되었습니다.');
       resetSubForm();
@@ -403,6 +446,8 @@ export function UserDetailModal({
                 <p className="text-sm text-slate-700">
                   <span className="font-semibold">{TIER_LABELS[sub.tier]}</span>
                   {' · '}
+                  <span className="font-semibold">{CONTRACT_TYPE_LABELS[sub.contract_type]}</span>
+                  {' · '}
                   {format(getContractStartDate(sub.started_at), 'yyyy-MM-dd')}
                   {' ~ '}
                   {format(getContractEndDate(sub.ended_at), 'yyyy-MM-dd')}
@@ -417,13 +462,18 @@ export function UserDetailModal({
               )}
             </div>
 
-            {canEditSub && subMode === 'idle' && subStatus === 'active' && (
+            {canEditSub && subMode === 'idle' && subStatus === 'active' && sub && (
               <div className="flex flex-col gap-2">
                 <div className="grid grid-cols-2 gap-2">
                   <AdminButton size="sm" variant="primary" onClick={() => enterMode('change_tier')}>
                     플랜 변경
                   </AdminButton>
-                  <AdminButton size="sm" variant="primary" onClick={() => enterMode('extend')}>
+                  <AdminButton
+                    size="sm"
+                    variant="primary"
+                    onClick={() => enterMode('extend')}
+                    disabled={sub.contract_type === 'trial'}
+                  >
                     기간 연장
                   </AdminButton>
                   <AdminButton size="sm" variant="secondary" onClick={() => enterMode('pause')}>
@@ -433,6 +483,11 @@ export function UserDetailModal({
                     해지
                   </AdminButton>
                 </div>
+                {sub.contract_type === 'trial' && (
+                  <p className="text-xs text-slate-500">
+                    무료 체험은 최초 시작일부터 10일로 고정됩니다. 정식 전환은 정보 정정에서 변경할 수 있습니다.
+                  </p>
+                )}
                 <button
                   type="button"
                   onClick={() => enterMode('correct')}
@@ -547,6 +602,14 @@ export function UserDetailModal({
                 {subMode === 'new' && (
                   <>
                     <div>
+                      <label className="text-xs text-slate-500 mb-1 block">계약 유형</label>
+                      <ContractTypePicker
+                        value={formContractType}
+                        onChange={handleContractTypeChange}
+                        disabled={subBusy}
+                      />
+                    </div>
+                    <div>
                       <label className="text-xs text-slate-500 mb-1 block">티어</label>
                       <TierPicker value={formTier} onChange={setFormTier} disabled={subBusy} />
                     </div>
@@ -555,11 +618,11 @@ export function UserDetailModal({
                       <ContractPeriodPicker
                         startDate={formStart}
                         endDate={formEnd}
-                        onChange={({ start, end }) => {
-                          setFormStart(start);
-                          setFormEnd(end);
-                        }}
+                        onChange={handleSubscriptionPeriodChange}
                         placeholder="시작일 ~ 종료일"
+                        fixedDurationDays={
+                          formContractType === 'trial' ? TRIAL_DURATION_DAYS : undefined
+                        }
                       />
                     </div>
                     <Button
@@ -572,11 +635,19 @@ export function UserDetailModal({
                   </>
                 )}
 
-                {subMode === 'correct' && (
+                {subMode === 'correct' && sub && (
                   <>
                     <p className="text-xs text-slate-500">
                       활성 구독의 잘못된 정보를 그대로 수정합니다 (history 안 남음).
                     </p>
+                    <div>
+                      <label className="text-xs text-slate-500 mb-1 block">계약 유형</label>
+                      <ContractTypePicker
+                        value={formContractType}
+                        onChange={handleContractTypeChange}
+                        disabled={subBusy}
+                      />
+                    </div>
                     <div>
                       <label className="text-xs text-slate-500 mb-1 block">티어</label>
                       <TierPicker value={formTier} onChange={setFormTier} disabled={subBusy} />
@@ -586,12 +657,24 @@ export function UserDetailModal({
                       <ContractPeriodPicker
                         startDate={formStart}
                         endDate={formEnd}
-                        onChange={({ start, end }) => {
-                          setFormStart(start);
-                          setFormEnd(end);
-                        }}
+                        onChange={handleSubscriptionPeriodChange}
                         placeholder="시작일 ~ 종료일"
+                        disabled={
+                          sub.contract_type === 'trial'
+                          && formContractType === 'trial'
+                          && sub.trial_started_at !== null
+                        }
+                        fixedDurationDays={
+                          formContractType === 'trial' ? TRIAL_DURATION_DAYS : undefined
+                        }
                       />
+                      {sub.contract_type === 'trial'
+                        && formContractType === 'trial'
+                        && sub.trial_started_at && (
+                          <p className="mt-1.5 text-[11px] text-slate-500">
+                            최초 무료 체험 시작일은 변경할 수 없습니다.
+                          </p>
+                        )}
                     </div>
                     <Button
                       onClick={submitCorrect}

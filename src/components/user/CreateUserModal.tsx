@@ -8,13 +8,16 @@ import { Modal } from '@/components/ui/Modal';
 import { CompanySearch } from '@/components/ui/CompanySearch';
 import { ContractPeriodPicker } from '@/components/ui/ContractPeriodPicker';
 import { TierPicker } from '@/components/user/TierPicker';
+import { ContractTypePicker } from '@/components/user/ContractTypePicker';
 import { useCreateUser } from '@/hooks/user/useUserMutation';
-import { type Tier } from '@/types/subscription';
+import { type ContractType, type Tier } from '@/types/subscription';
 import type { ProfileRole } from '@/types/auth';
 import { getErrorMessage } from '@/lib/utils';
 import {
   getContractPresetEndDate,
   getKstTodayDate,
+  getTrialEndDate,
+  TRIAL_DURATION_DAYS,
   toContractEndIso,
   toContractStartIso,
 } from '@/lib/contractDate';
@@ -49,6 +52,7 @@ export function CreateUserModal({ open, onClose, myRole }: CreateUserModalProps)
   const [industry, setIndustry] = useState('');
   const [businessSummary, setBusinessSummary] = useState('');
   const [tier, setTier] = useState<Tier>('black_plus');
+  const [contractType, setContractType] = useState<ContractType>('paid');
   const [startDate, setStartDate] = useState<Date | undefined>(() => getKstTodayDate());
   const [endDate, setEndDate] = useState<Date | undefined>(() =>
     getContractPresetEndDate(getKstTodayDate(), 1)
@@ -78,6 +82,7 @@ export function CreateUserModal({ open, onClose, myRole }: CreateUserModalProps)
     setIndustry('');
     setBusinessSummary('');
     setTier('black_plus');
+    setContractType('paid');
     const today = getKstTodayDate();
     setStartDate(today);
     setEndDate(getContractPresetEndDate(today, 1));
@@ -86,7 +91,16 @@ export function CreateUserModal({ open, onClose, myRole }: CreateUserModalProps)
 
   const handlePeriodChange = ({ start, end }: { start: Date | undefined; end: Date | undefined }) => {
     setStartDate(start);
-    setEndDate(end);
+    setEndDate(contractType === 'trial' && start ? getTrialEndDate(start) : end);
+  };
+
+  const handleContractTypeChange = (next: ContractType) => {
+    setContractType(next);
+    if (next === 'trial') {
+      const trialStart = startDate ?? getKstTodayDate();
+      setStartDate(trialStart);
+      setEndDate(getTrialEndDate(trialStart));
+    }
   };
 
   const handleCreate = async () => {
@@ -103,6 +117,7 @@ export function CreateUserModal({ open, onClose, myRole }: CreateUserModalProps)
               industry: industry.trim() || undefined,
               business_summary: businessSummary.trim() || undefined,
               tier,
+              contract_type: contractType,
               subscription_start: toContractStartIso(startDate),
               subscription_end: toContractEndIso(endDate),
             }
@@ -234,6 +249,12 @@ export function CreateUserModal({ open, onClose, myRole }: CreateUserModalProps)
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-600 mb-1 block">
+                계약 유형 <span className="text-red-500">*</span>
+              </label>
+              <ContractTypePicker value={contractType} onChange={handleContractTypeChange} />
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-slate-600 mb-1 block">
                 계약 기간 <span className="text-red-500">*</span>
               </label>
               <ContractPeriodPicker
@@ -241,6 +262,7 @@ export function CreateUserModal({ open, onClose, myRole }: CreateUserModalProps)
                 endDate={endDate}
                 onChange={handlePeriodChange}
                 placeholder="시작일 ~ 종료일"
+                fixedDurationDays={contractType === 'trial' ? TRIAL_DURATION_DAYS : undefined}
               />
             </div>
 

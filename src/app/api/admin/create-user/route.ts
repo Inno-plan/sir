@@ -19,6 +19,8 @@ const VALID_TIERS = new Set([
   'blue_plus',
   'black_plus',
 ]);
+const VALID_CONTRACT_TYPES = new Set(['trial', 'paid']);
+const TRIAL_DURATION_MS = 10 * 24 * 60 * 60 * 1000;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -71,6 +73,7 @@ export async function POST(request: NextRequest) {
   const role = roleValue as CreateUserRole;
   const ticker = requiredString(body.ticker);
   const tier = typeof body.tier === 'string' ? body.tier : '';
+  const contract_type = typeof body.contract_type === 'string' ? body.contract_type : 'paid';
   const subscription_start =
     typeof body.subscription_start === 'string' ? body.subscription_start : '';
   const subscription_end =
@@ -99,12 +102,21 @@ export async function POST(request: NextRequest) {
   if (role === 'user' && !VALID_TIERS.has(tier)) {
     return NextResponse.json({ detail: 'tier 값이 올바르지 않습니다' }, { status: 400 });
   }
+  if (role === 'user' && !VALID_CONTRACT_TYPES.has(contract_type)) {
+    return NextResponse.json({ detail: 'contract_type 값이 올바르지 않습니다' }, { status: 400 });
+  }
   if (role === 'user') {
     const startedAt = Date.parse(subscription_start);
     const endedAt = Date.parse(subscription_end);
     if (!Number.isFinite(startedAt) || !Number.isFinite(endedAt) || startedAt >= endedAt) {
       return NextResponse.json(
         { detail: '계약 시작일은 종료일보다 이전이어야 합니다' },
+        { status: 400 },
+      );
+    }
+    if (contract_type === 'trial' && endedAt !== startedAt + TRIAL_DURATION_MS) {
+      return NextResponse.json(
+        { detail: '무료 체험 기간은 시작일부터 10일이어야 합니다' },
         { status: 400 },
       );
     }
@@ -148,6 +160,7 @@ export async function POST(request: NextRequest) {
           p_tier: tier,
           p_started_at: subscription_start,
           p_ended_at: subscription_end,
+          p_contract_type: contract_type,
         },
       );
       if (rpcErr) throw rpcErr;

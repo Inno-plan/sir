@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/client';
 import type { ProfileRole } from '@/types/auth';
-import type { Tier } from '@/types/subscription';
+import type { ContractType, Tier } from '@/types/subscription';
 import type { Subscription } from '@/lib/api/subscriptionApi';
 
 const supabase = createClient();
@@ -145,6 +145,9 @@ export async function createUser(params: {
   industry?: string;
   business_summary?: string;
   tier?: Tier;
+  contract_type?: ContractType;
+  subscription_start?: string;
+  subscription_end?: string;
 }): Promise<{ id: string; email: string }> {
   const res = await fetch('/api/admin/create-user', {
     method: 'POST',

@@ -10,7 +10,7 @@ import {
 import { userKeys } from '@/hooks/user/useUserQuery';
 import { workspaceKeys } from '@/hooks/workspace/workspaceKeys';
 import type { ProfileRole } from '@/types/auth';
-import type { Tier } from '@/types/subscription';
+import type { ContractType, Tier } from '@/types/subscription';
 
 export interface CreateUserInput {
   email: string;
@@ -21,6 +21,7 @@ export interface CreateUserInput {
   industry?: string;
   business_summary?: string;
   tier?: Tier;
+  contract_type?: ContractType;
   /** ISO 날짜 문자열, role='user' 일 때 필수 */
   subscription_start?: string;
   /** ISO 날짜 문자열, role='user' 일 때 필수 */
