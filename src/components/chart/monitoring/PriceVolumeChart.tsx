@@ -17,6 +17,7 @@ import {
   SHARED_X_AXIS_PROPS,
 } from './shared';
 import { PriceVolumeTooltip } from './tooltips';
+import { PannableChartViewport, type ChartViewportControlProps } from './PannableChartViewport';
 
 interface Props {
   merged: MergedPoint[];
@@ -26,6 +27,8 @@ interface Props {
   setSelectedDate: (fn: (prev: string | null) => string | null) => void;
   loading: boolean;
   barSize: number;
+  dateTicks: string[];
+  viewport: ChartViewportControlProps;
 }
 
 /** 탭 A — 주가 + 일별 수집량. */
@@ -37,6 +40,8 @@ export function PriceVolumeChart({
   setSelectedDate,
   loading,
   barSize,
+  dateTicks,
+  viewport,
 }: Props) {
   const hasPrice = merged.some((d) => d.close != null);
   return (
@@ -52,7 +57,11 @@ export function PriceVolumeChart({
       loading={loading}
       empty={!hasPrice}
     >
-      <div className="h-[300px]">
+      <PannableChartViewport
+        {...viewport}
+        startDate={merged[0]?.date}
+        endDate={merged[merged.length - 1]?.date}
+      >
         <ChartCanvas width="100%">
           <ComposedChart
             data={merged}
@@ -60,8 +69,13 @@ export function PriceVolumeChart({
             onClick={makeChartClickHandler(setSelectedDate)}
             style={{ cursor: 'pointer' }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} yAxisId="price" />
-            <XAxis {...SHARED_X_AXIS_PROPS} />
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="#f1f5f9"
+              vertical={false}
+              yAxisId="price"
+            />
+            <XAxis {...SHARED_X_AXIS_PROPS} ticks={dateTicks} interval={0} />
             <YAxis
               yAxisId="vol"
               orientation="left"
@@ -110,7 +124,7 @@ export function PriceVolumeChart({
             {buildPinLine(selectedDate, 'price')}
           </ComposedChart>
         </ChartCanvas>
-      </div>
+      </PannableChartViewport>
       <ChartLegend
         items={[
           { color: PRIMARY, label: '수집량 (좌, 건)' },

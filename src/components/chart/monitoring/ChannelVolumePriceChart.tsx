@@ -20,6 +20,7 @@ import {
   SHARED_X_AXIS_PROPS,
 } from './shared';
 import { ChannelPriceTooltip } from './tooltips';
+import { PannableChartViewport, type ChartViewportControlProps } from './PannableChartViewport';
 
 const SENTIMENT_OPTIONS: { id: SentimentFilter; label: string }[] = [
   { id: 'all', label: '전체' },
@@ -41,6 +42,8 @@ interface Props {
   visibleChannels: Set<Channel>;
   toggleChannel: (id: Channel) => void;
   hasPrice: boolean;
+  dateTicks: string[];
+  viewport: ChartViewportControlProps;
 }
 
 /** 탭 E — 채널별 수집량(스택 area) + 주가(캔들) + 감정/채널 토글. */
@@ -57,6 +60,8 @@ export function ChannelVolumePriceChart({
   visibleChannels,
   toggleChannel,
   hasPrice,
+  dateTicks,
+  viewport,
 }: Props) {
   const empty = channelFiltered.every((d) => d.filteredVolume === 0) && !hasPrice;
   return (
@@ -111,7 +116,11 @@ export function ChannelVolumePriceChart({
         loading={loading}
         empty={empty}
       >
-        <div className="h-[300px]">
+        <PannableChartViewport
+          {...viewport}
+          startDate={channelFiltered[0]?.date}
+          endDate={channelFiltered[channelFiltered.length - 1]?.date}
+        >
           <ChartCanvas width="100%">
             <ComposedChart
               data={channelFiltered}
@@ -119,8 +128,13 @@ export function ChannelVolumePriceChart({
               onClick={makeChartClickHandler(setSelectedDate)}
               style={{ cursor: 'pointer' }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} yAxisId="vol" />
-              <XAxis {...SHARED_X_AXIS_PROPS} />
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#f1f5f9"
+                vertical={false}
+                yAxisId="vol"
+              />
+              <XAxis {...SHARED_X_AXIS_PROPS} ticks={dateTicks} interval={0} />
               <YAxis
                 yAxisId="vol"
                 orientation="left"
@@ -178,7 +192,7 @@ export function ChannelVolumePriceChart({
               {buildPinLine(selectedDate, 'price')}
             </ComposedChart>
           </ChartCanvas>
-        </div>
+        </PannableChartViewport>
         <ChartLegend
           items={[
             ...MONITORING_CHANNELS.filter((c) => visibleChannels.has(c.id)).map((c) => ({

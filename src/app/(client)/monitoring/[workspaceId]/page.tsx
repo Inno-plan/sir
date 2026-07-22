@@ -12,11 +12,7 @@ import {
   useMonitoringLatestClose,
 } from '@/hooks/monitoring/useMonitoringQuery';
 // import { useMonitoringSearchLive } from '@/hooks/monitoring/useMonitoringSearchLive';
-import {
-  pickMatrixCount,
-  type Channel,
-  type SentimentFilter,
-} from '@/lib/api/monitoringApi';
+import { pickMatrixCount, type Channel, type SentimentFilter } from '@/lib/api/monitoringApi';
 // import { AiAnalysisCard } from '@/components/client/monitoring/AiAnalysisCard';
 import { DayDetailDrawer } from '@/components/client/monitoring/DayDetailDrawer';
 import { ReportDisclaimer } from '@/components/report/ReportDisclaimer';
@@ -32,6 +28,12 @@ import { SentimentPriceChart } from '@/components/chart/monitoring/SentimentPric
 // import { RiskPriceChart } from '@/components/chart/monitoring/RiskPriceChart';
 import { ChannelVolumePriceChart } from '@/components/chart/monitoring/ChannelVolumePriceChart';
 // import { VolumeSearchChart } from '@/components/chart/monitoring/VolumeSearchChart';
+import {
+  getChartViewport,
+  LONG_RANGE_MIN_DAYS,
+  LONG_RANGE_VISIBLE_POINTS,
+  pickVisibleDateTicks,
+} from '@/components/chart/monitoring/chartViewport';
 
 // ── date utils (KST 기준) ──────────────────────────────────────────────
 function kstTodayStr(): string {
@@ -73,6 +75,8 @@ export default function MonitoringPage() {
 
   const today = useMemo(() => kstTodayStr(), []);
   const [presetDays, setPresetDays] = useState<number>(30);
+  // 0 = 최신 구간. 값이 커질수록 과거 구간을 표시한다.
+  const [chartOffset, setChartOffset] = useState(0);
   // 분석/차트 기준 — 오늘은 미완결 데이터 (KST 자정 cutoff). end = 어제, start = end - (N-1)
   const end = useMemo(() => shiftDays(today, -1), [today]);
   const start = useMemo(() => shiftDays(end, -(presetDays - 1)), [end, presetDays]);
@@ -84,7 +88,7 @@ export default function MonitoringPage() {
   const [sentimentFilter, setSentimentFilter] = useState<SentimentFilter>('all');
   // E 탭 채널 가시성. 기본 전체 ON.
   const [visibleChannels, setVisibleChannels] = useState<Set<Channel>>(
-    () => new Set(['news', 'blog', 'youtube', 'community']),
+    () => new Set(['news', 'blog', 'youtube', 'community'])
   );
   const toggleChannel = (id: Channel) => {
     setVisibleChannels((prev) => {
@@ -110,7 +114,7 @@ export default function MonitoringPage() {
   const { data: matrix = [], isPending: matrixLoading } = useMonitoringChannelMatrix(
     activeTab === 'E' ? workspaceId : '',
     start,
-    end,
+    end
   );
 
   const isLoading = dailyLoading || stockLoading || risksLoading;
@@ -196,7 +200,7 @@ export default function MonitoringPage() {
           rawNegative: d.negative,
         };
       }),
-    [merged],
+    [merged]
   );
 
   // E 탭용: matrix 를 (relevant × sentiment) 토글에 따라 슬라이스해 채널 4선용 일자 시리즈로 변환.
@@ -219,25 +223,46 @@ export default function MonitoringPage() {
     });
   }, [merged, matrix, sentimentFilter]);
 
+  // 90일 이상은 한 화면에 45개 포인트만 보여주고 좌우 드래그로 나머지 기간을 탐색한다.
+  const viewport = getChartViewport(
+    merged.length,
+    chartOffset,
+    LONG_RANGE_VISIBLE_POINTS,
+    range >= LONG_RANGE_MIN_DAYS
+  );
+  const visibleMerged = merged.slice(viewport.startIndex, viewport.endIndex);
+  const visibleSentimentSeries = sentimentSeries.slice(viewport.startIndex, viewport.endIndex);
+  const visibleChannelFiltered = channelFiltered.slice(viewport.startIndex, viewport.endIndex);
+  const dateTicks = pickVisibleDateTicks(visibleMerged);
+  const chartViewportProps = {
+    enabled: viewport.enabled,
+    offset: viewport.offset,
+    maxOffset: viewport.maxOffset,
+    visiblePointCount: LONG_RANGE_VISIBLE_POINTS,
+    onOffsetChange: setChartOffset,
+  };
+
   // ── 가격 Y축 nice ticks 계산 (모든 차트 공통) ──
   const priceMin = Math.min(
-    ...merged.filter((d) => d.low != null).map((d) => d.low as number),
-    Infinity,
+    ...visibleMerged.filter((d) => d.low != null).map((d) => d.low as number),
+    Infinity
   );
   const priceMax = Math.max(
-    ...merged.filter((d) => d.high != null).map((d) => d.high as number),
-    -Infinity,
+    ...visibleMerged.filter((d) => d.high != null).map((d) => d.high as number),
+    -Infinity
   );
-  const priceNice = isFinite(priceMin) && isFinite(priceMax)
-    ? niceTicks(priceMin * 0.98, priceMax * 1.02, 5)
-    : null;
+  const priceNice =
+    isFinite(priceMin) && isFinite(priceMax)
+      ? niceTicks(priceMin * 0.98, priceMax * 1.02, 5)
+      : null;
   const priceDomain: [number | string, number | string] = priceNice
     ? priceNice.domain
     : ['auto', 'auto'];
   const priceTicks: number[] | undefined = priceNice?.ticks;
-  const hasPrice = merged.some((d) => d.close != null);
-  // 데이터 점 폭에 따라 캔들/막대 두께. 60일 이상이면 좀게, 90일 이상이면 더 좁게.
-  const barSize = range >= 180 ? 2 : range >= 90 ? 4 : 8;
+  const hasPrice = visibleMerged.some((d) => d.close != null);
+  // 실제 화면에 보이는 데이터 점 수 기준으로 캔들/막대 두께를 결정한다.
+  const visiblePointCount = visibleMerged.length;
+  const barSize = visiblePointCount >= 180 ? 2 : visiblePointCount >= 90 ? 4 : 8;
 
   return (
     <div className="h-full bg-white overflow-y-auto">
@@ -273,7 +298,10 @@ export default function MonitoringPage() {
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => setPresetDays(p.id)}
+                  onClick={() => {
+                    setPresetDays(p.id);
+                    setChartOffset(0);
+                  }}
                   className={`text-[11.5px] font-bold px-3.5 py-1.5 rounded-full border transition-colors cursor-pointer tracking-[-0.005em] flex-1 lg:flex-none ${
                     active
                       ? 'bg-slate-900 text-white border-slate-900'
@@ -326,25 +354,29 @@ export default function MonitoringPage() {
         <div className="-mt-3 flex flex-col gap-4">
           {activeTab === 'A' && (
             <PriceVolumeChart
-              merged={merged}
+              merged={visibleMerged}
               priceDomain={priceDomain}
               priceTicks={priceTicks}
               selectedDate={selectedDate}
               setSelectedDate={setSelectedDate}
               loading={isLoading}
               barSize={barSize}
+              dateTicks={dateTicks}
+              viewport={chartViewportProps}
             />
           )}
           {activeTab === 'B' && (
             <SentimentPriceChart
-              merged={merged}
-              sentimentSeries={sentimentSeries}
+              merged={visibleMerged}
+              sentimentSeries={visibleSentimentSeries}
               priceDomain={priceDomain}
               priceTicks={priceTicks}
               selectedDate={selectedDate}
               setSelectedDate={setSelectedDate}
               loading={isLoading}
               barSize={barSize}
+              dateTicks={dateTicks}
+              viewport={chartViewportProps}
             />
           )}
           {/* 임시 비노출 탭: 리스크 유형과 주가 관계 / 검색량과 주가 관계 / 데이터 수집량과 검색량 관계
@@ -373,7 +405,7 @@ export default function MonitoringPage() {
           */}
           {activeTab === 'E' && (
             <ChannelVolumePriceChart
-              channelFiltered={channelFiltered}
+              channelFiltered={visibleChannelFiltered}
               priceDomain={priceDomain}
               priceTicks={priceTicks}
               selectedDate={selectedDate}
@@ -385,6 +417,8 @@ export default function MonitoringPage() {
               visibleChannels={visibleChannels}
               toggleChannel={toggleChannel}
               hasPrice={hasPrice}
+              dateTicks={dateTicks}
+              viewport={chartViewportProps}
             />
           )}
           {/* 임시 비노출 탭: 데이터 수집량과 검색량 관계
