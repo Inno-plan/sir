@@ -4,11 +4,13 @@ import { getContractSummary, isContractExpiryNoticeDismissed } from '@/lib/subsc
 
 const NOW = new Date('2026-07-21T03:00:00.000Z');
 
-function subscription(endedAt: string): Subscription {
+function subscription(endedAt: string, contractType: Subscription['contract_type'] = 'paid'): Subscription {
   return {
     id: 'subscription-id',
     workspace_id: 'workspace-id',
     tier: 'white',
+    contract_type: contractType,
+    trial_started_at: contractType === 'trial' ? '2026-07-18T15:00:00.000Z' : null,
     started_at: '2026-06-30T15:00:00.000Z',
     ended_at: endedAt,
     has_daily: false,
@@ -29,6 +31,18 @@ describe('contract expiry notice', () => {
 
   it('does not mark contracts with eight calendar days remaining as expiring', () => {
     expect(getContractSummary(subscription('2026-07-29T15:00:00.000Z'), NOW).status).toBe('active');
+  });
+
+  it('marks free trials with three calendar days remaining as expiring', () => {
+    expect(
+      getContractSummary(subscription('2026-07-24T15:00:00.000Z', 'trial'), NOW),
+    ).toMatchObject({ status: 'expiring', daysUntilExpiry: 3 });
+  });
+
+  it('does not show the free trial notice with four days remaining', () => {
+    expect(
+      getContractSummary(subscription('2026-07-25T15:00:00.000Z', 'trial'), NOW).status,
+    ).toBe('active');
   });
 
   it('uses the inclusive final service date for D-day', () => {

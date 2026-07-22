@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client';
-import type { Tier } from '@/types/subscription';
+import type { ContractType, Tier } from '@/types/subscription';
 
 const supabase = createClient();
 
@@ -7,6 +7,8 @@ export interface Subscription {
   id: string;
   workspace_id: string;
   tier: Tier;
+  contract_type: ContractType;
+  trial_started_at: string | null;
   started_at: string;
   ended_at: string;
   has_daily: boolean;
@@ -154,12 +156,14 @@ export async function renewSubscription(input: {
   newTier: Tier;
   newStartedAt: string;
   newEndedAt: string;
+  contractType: ContractType;
 }): Promise<string> {
   const { data, error } = await supabase.rpc('renew_subscription', {
     p_workspace_id: input.workspaceId,
     p_new_tier: input.newTier,
     p_new_started_at: input.newStartedAt,
     p_new_ended_at: input.newEndedAt,
+    p_contract_type: input.contractType,
   });
   if (error) throw error;
   return data as string;
@@ -208,12 +212,14 @@ export async function correctSubscription(input: {
   tier?: Tier;
   startedAt?: string;
   endedAt?: string;
+  contractType?: ContractType;
 }): Promise<string> {
   const { data, error } = await supabase.rpc('correct_subscription', {
     p_subscription_id: input.subscriptionId,
     ...(input.tier !== undefined && { p_tier: input.tier }),
     ...(input.startedAt !== undefined && { p_started_at: input.startedAt }),
     ...(input.endedAt !== undefined && { p_ended_at: input.endedAt }),
+    ...(input.contractType !== undefined && { p_contract_type: input.contractType }),
   });
   if (error) throw error;
   return data as string;

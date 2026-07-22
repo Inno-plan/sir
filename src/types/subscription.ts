@@ -8,6 +8,13 @@ export type Tier =
   | 'blue_plus'
   | 'black_plus';
 
+export type ContractType = 'trial' | 'paid';
+
+export const CONTRACT_TYPE_LABELS: Record<ContractType, string> = {
+  trial: '무료 체험',
+  paid: '정식',
+};
+
 export const TIER_LABELS: Record<Tier, string> = {
   white: '화이트',
   red: '레드',

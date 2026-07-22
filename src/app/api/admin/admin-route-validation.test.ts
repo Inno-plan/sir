@@ -255,6 +255,43 @@ describe('admin route body validation', () => {
 
   const routes: RouteCase[] = [
     {
+      name: 'create-user',
+      post: createUserPost,
+      role: 'super_admin',
+      cases: [
+        {
+          name: 'unknown contract type',
+          body: JSON.stringify({
+            email: 'trial@example.com',
+            password: 'Password1',
+            company_name: '체험기업',
+            role: 'user',
+            ticker: '000000',
+            tier: 'black_plus',
+            contract_type: 'unknown',
+            subscription_start: '2026-07-21T15:00:00.000Z',
+            subscription_end: '2026-07-31T15:00:00.000Z',
+          }),
+          detail: 'contract_type 값이 올바르지 않습니다',
+        },
+        {
+          name: 'trial period other than ten days',
+          body: JSON.stringify({
+            email: 'trial@example.com',
+            password: 'Password1',
+            company_name: '체험기업',
+            role: 'user',
+            ticker: '000000',
+            tier: 'black_plus',
+            contract_type: 'trial',
+            subscription_start: '2026-07-21T15:00:00.000Z',
+            subscription_end: '2026-07-30T15:00:00.000Z',
+          }),
+          detail: '무료 체험 기간은 시작일부터 10일이어야 합니다',
+        },
+      ],
+    },
+    {
       name: 'publish-report',
       post: publishReportPost,
       role: 'admin',
