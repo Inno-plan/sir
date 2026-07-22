@@ -1,7 +1,7 @@
 'use client';
 
 import { format, parseISO } from 'date-fns';
-import { TIER_LABELS } from '@/types/subscription';
+import { CONTRACT_TYPE_LABELS, TIER_LABELS } from '@/types/subscription';
 import { getContractSummary, CONTRACT_STATUS_STYLE } from '@/lib/subscription';
 import { getContractEndDate, getContractStartDate } from '@/lib/contractDate';
 import type { UserWithDetails, WorkspaceTokens } from '@/lib/api/userApi';
@@ -37,7 +37,7 @@ export function CustomerTable({ users, tokens, onSelect }: CustomerTableProps) {
         <div className="hidden lg:grid grid-cols-[1.2fr_1.6fr_0.7fr_1.3fr_0.6fr_0.9fr_0.7fr] sticky top-0 z-10 bg-white border-b border-slate-100 py-3 px-4 text-xs font-semibold text-slate-500">
           <div>회사명</div>
           <div>이메일</div>
-          <div className="text-center">티어</div>
+          <div className="text-center">계약/티어</div>
           <div className="text-center">계약 기간</div>
           <div className="text-center">남은</div>
           <div className="text-center">AI 토큰 (잔여 / 월충전)</div>
@@ -62,6 +62,7 @@ export function CustomerTable({ users, tokens, onSelect }: CustomerTableProps) {
                   ? `${summary.daysUntilExpiry}일`
                   : `D-${summary.daysUntilExpiry}`;
           const tierLabel = sub ? TIER_LABELS[sub.tier] : '-';
+          const contractTypeLabel = sub ? CONTRACT_TYPE_LABELS[sub.contract_type] : '-';
           const tk = u.workspace ? tokensByWs.get(u.workspace.id) : undefined;
           // 잔여 토큰이 월 충전량의 20% 미만이면 경고색, 0 이하면 빨간색
           const balanceClass = tk
@@ -91,7 +92,18 @@ export function CustomerTable({ users, tokens, onSelect }: CustomerTableProps) {
               <div className="hidden lg:grid grid-cols-[1.2fr_1.6fr_0.7fr_1.3fr_0.6fr_0.9fr_0.7fr] items-center py-3 px-4">
                 <div className="text-sm font-semibold text-slate-700 truncate">{u.company_name}</div>
                 <div className="text-sm text-slate-500 truncate">{u.email}</div>
-                <div className="text-center text-xs text-slate-600">{tierLabel}</div>
+                <div className="flex flex-col items-center gap-0.5 text-center text-xs">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                      sub?.contract_type === 'trial'
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'bg-emerald-50 text-emerald-700'
+                    }`}
+                  >
+                    {contractTypeLabel}
+                  </span>
+                  <span className="text-slate-500">{tierLabel}</span>
+                </div>
                 <div className="text-center text-xs text-slate-500">{periodLabel}</div>
                 <div className="text-center text-xs text-slate-500">{remainLabel}</div>
                 <div className="text-center text-xs">{tokenCell}</div>
@@ -110,6 +122,17 @@ export function CustomerTable({ users, tokens, onSelect }: CustomerTableProps) {
                     <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">
                       {tierLabel}
                     </span>
+                    {sub && (
+                      <span
+                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${
+                          sub.contract_type === 'trial'
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'bg-emerald-50 text-emerald-700'
+                        }`}
+                      >
+                        {contractTypeLabel}
+                      </span>
+                    )}
                   </div>
                   <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded ${style.className}`}>
                     {style.label}

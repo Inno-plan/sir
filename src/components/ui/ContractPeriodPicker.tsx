@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { DayPicker } from 'react-day-picker';
 import { ko } from 'react-day-picker/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { addMonths, format, isSameDay } from 'date-fns';
+import { addDays, addMonths, format, isSameDay } from 'date-fns';
 import { Modal } from '@/components/ui/Modal';
 import { AdminButton } from '@/components/ui/AdminButton';
 import { getContractPresetEndDate, getKstTodayDate } from '@/lib/contractDate';
@@ -15,6 +15,8 @@ interface ContractPeriodPickerProps {
   onChange: (range: { start: Date | undefined; end: Date | undefined }) => void;
   placeholder?: string;
   disabled?: boolean;
+  /** 시작일을 포함한 고정 사용 일수. 설정하면 종료일을 직접 선택할 수 없다. */
+  fixedDurationDays?: number;
 }
 
 const PRESETS: { months: number; label: string }[] = [
@@ -62,6 +64,7 @@ export function ContractPeriodPicker({
   onChange,
   placeholder = '계약 기간 선택',
   disabled = false,
+  fixedDurationDays,
 }: ContractPeriodPickerProps) {
   const [open, setOpen] = useState(false);
   const [pendingStart, setPendingStart] = useState<Date | undefined>(startDate);
@@ -72,7 +75,9 @@ export function ContractPeriodPicker({
   const handleOpen = () => {
     if (disabled) return;
     setPendingStart(startDate);
-    setPendingEnd(endDate);
+    setPendingEnd(
+      fixedDurationDays && startDate ? addDays(startDate, fixedDurationDays - 1) : endDate,
+    );
     const fallbackStart = startDate ?? getKstTodayDate();
     setMonthStart(fallbackStart);
     setMonthEnd(endDate ?? addMonths(fallbackStart, 1));
@@ -97,6 +102,12 @@ export function ContractPeriodPicker({
 
   const handleStartSelect = (d: Date | undefined) => {
     setPendingStart(d);
+    if (fixedDurationDays) {
+      const nextEnd = d ? addDays(d, fixedDurationDays - 1) : undefined;
+      setPendingEnd(nextEnd);
+      if (nextEnd) setMonthEnd(nextEnd);
+      return;
+    }
     // 시작일이 종료일 이후면 포함 종료일을 1개월 계약 기준으로 자동 보정
     if (d && pendingEnd && d > pendingEnd) {
       const next = getContractPresetEndDate(d, 1);
@@ -207,33 +218,38 @@ export function ContractPeriodPicker({
         `}</style>
 
         <div className="flex flex-col gap-5">
-          {/* 프리셋 */}
-          <div className="flex flex-col gap-2">
-            <span className="text-xs font-semibold text-slate-500">빠른 선택 (시작일 기준)</span>
-            <div className="flex gap-1.5 flex-wrap">
-              {PRESETS.map((p) => {
-                const active = activePresetMonths === p.months;
-                return (
-                  <button
-                    key={p.months}
-                    type="button"
-                    onClick={() => applyPreset(p.months)}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors cursor-pointer ${
-                      active
-                        ? 'bg-bg-accent text-white border-bg-accent'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                );
-              })}
+          {fixedDurationDays ? (
+            <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
+              시작일을 선택하면 종료일이 {fixedDurationDays}일 이용 기준으로 자동 설정됩니다.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-semibold text-slate-500">빠른 선택 (시작일 기준)</span>
+              <div className="flex gap-1.5 flex-wrap">
+                {PRESETS.map((p) => {
+                  const active = activePresetMonths === p.months;
+                  return (
+                    <button
+                      key={p.months}
+                      type="button"
+                      onClick={() => applyPreset(p.months)}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors cursor-pointer ${
+                        active
+                          ? 'bg-bg-accent text-white border-bg-accent'
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="border-t border-slate-100" />
 
-          {/* 두 캘린더 */}
+          {/* 일반 계약은 시작·종료, 고정 기간은 시작일만 선택 */}
           <div className="flex flex-col lg:flex-row gap-5 lg:gap-8 justify-center">
             <div className="flex flex-col items-center gap-2 flex-1">
               <span className="text-xs font-semibold text-slate-500">시작일</span>
@@ -255,26 +271,28 @@ export function ContractPeriodPicker({
               />
             </div>
 
-            <div className="flex flex-col items-center gap-2 flex-1">
-              <span className="text-xs font-semibold text-slate-500">종료일</span>
-              <MonthHeader
-                label={`${monthEnd.getFullYear()}년 ${monthEnd.getMonth() + 1}월`}
-                onPrev={() => bumpMonth(setMonthEnd, -1)}
-                onNext={() => bumpMonth(setMonthEnd, 1)}
-              />
-              <DayPicker
-                className="sir-datepicker"
-                mode="single"
-                selected={pendingEnd}
-                onSelect={handleEndSelect}
-                locale={ko}
-                weekStartsOn={1}
-                month={monthEnd}
-                onMonthChange={setMonthEnd}
-                showOutsideDays
-                disabled={pendingStart ? { before: pendingStart } : undefined}
-              />
-            </div>
+            {!fixedDurationDays && (
+              <div className="flex flex-col items-center gap-2 flex-1">
+                <span className="text-xs font-semibold text-slate-500">종료일</span>
+                <MonthHeader
+                  label={`${monthEnd.getFullYear()}년 ${monthEnd.getMonth() + 1}월`}
+                  onPrev={() => bumpMonth(setMonthEnd, -1)}
+                  onNext={() => bumpMonth(setMonthEnd, 1)}
+                />
+                <DayPicker
+                  className="sir-datepicker"
+                  mode="single"
+                  selected={pendingEnd}
+                  onSelect={handleEndSelect}
+                  locale={ko}
+                  weekStartsOn={1}
+                  month={monthEnd}
+                  onMonthChange={setMonthEnd}
+                  showOutsideDays
+                  disabled={pendingStart ? { before: pendingStart } : undefined}
+                />
+              </div>
+            )}
           </div>
 
           {pendingStart && pendingEnd && (

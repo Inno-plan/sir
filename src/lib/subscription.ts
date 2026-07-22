@@ -32,13 +32,16 @@ export function getContractSummary(
   const today = getKstTodayDate(now);
   const daysToStart = differenceInCalendarDays(getContractStartDate(sub.started_at), today);
   const days = differenceInCalendarDays(getContractEndDate(sub.ended_at), today);
+  const expiryNoticeDays = sub.contract_type === 'trial' ? 3 : 7;
 
   // 아직 시작 전 = 예약
   if (daysToStart > 0) {
     return { status: 'scheduled', daysUntilExpiry: days, daysUntilStart: daysToStart };
   }
   if (days < 0) return { status: 'expired', daysUntilExpiry: days, daysUntilStart: null };
-  if (days <= 7) return { status: 'expiring', daysUntilExpiry: days, daysUntilStart: null };
+  if (days <= expiryNoticeDays) {
+    return { status: 'expiring', daysUntilExpiry: days, daysUntilStart: null };
+  }
   return { status: 'active', daysUntilExpiry: days, daysUntilStart: null };
 }
 

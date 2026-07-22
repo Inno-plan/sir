@@ -1207,6 +1207,7 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          contract_type: Database["public"]["Enums"]["subscription_contract_type"]
           created_at: string
           created_by: string | null
           ended_at: string
@@ -1217,9 +1218,11 @@ export type Database = {
           reason: string | null
           started_at: string
           tier: Database["public"]["Enums"]["service_tier"]
+          trial_started_at: string | null
           workspace_id: string
         }
         Insert: {
+          contract_type?: Database["public"]["Enums"]["subscription_contract_type"]
           created_at?: string
           created_by?: string | null
           ended_at: string
@@ -1230,9 +1233,11 @@ export type Database = {
           reason?: string | null
           started_at?: string
           tier: Database["public"]["Enums"]["service_tier"]
+          trial_started_at?: string | null
           workspace_id: string
         }
         Update: {
+          contract_type?: Database["public"]["Enums"]["subscription_contract_type"]
           created_at?: string
           created_by?: string | null
           ended_at?: string
@@ -1243,6 +1248,7 @@ export type Database = {
           reason?: string | null
           started_at?: string
           tier?: Database["public"]["Enums"]["service_tier"]
+          trial_started_at?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -1574,6 +1580,7 @@ export type Database = {
       cleanup_zombie_pipeline_state: { Args: never; Returns: Json }
       correct_subscription: {
         Args: {
+          p_contract_type?: Database["public"]["Enums"]["subscription_contract_type"]
           p_ended_at?: string
           p_started_at?: string
           p_subscription_id: string
@@ -1585,6 +1592,7 @@ export type Database = {
         Args: {
           p_business_summary: string
           p_company_name: string
+          p_contract_type?: Database["public"]["Enums"]["subscription_contract_type"]
           p_ended_at: string
           p_industry: string
           p_started_at: string
@@ -1650,6 +1658,7 @@ export type Database = {
       purge_expired_youtube_metadata: { Args: never; Returns: number }
       renew_subscription: {
         Args: {
+          p_contract_type?: Database["public"]["Enums"]["subscription_contract_type"]
           p_new_ended_at: string
           p_new_started_at: string
           p_new_tier: Database["public"]["Enums"]["service_tier"]
@@ -1659,6 +1668,7 @@ export type Database = {
       }
       resume_subscription: {
         Args: {
+          p_contract_type?: Database["public"]["Enums"]["subscription_contract_type"]
           p_new_ended_at: string
           p_new_started_at: string
           p_new_tier: Database["public"]["Enums"]["service_tier"]
@@ -1724,6 +1734,7 @@ export type Database = {
         | "red_plus"
         | "blue_plus"
         | "black_plus"
+      subscription_contract_type: "trial" | "paid"
       session_type: "initial_30d" | "weekly" | "daily"
       workspace_member_role: "super_admin" | "admin" | "user"
     }
@@ -1885,6 +1896,7 @@ export const Constants = {
         "blue_plus",
         "black_plus",
       ],
+      subscription_contract_type: ["trial", "paid"],
       session_type: ["initial_30d", "weekly", "daily"],
       workspace_member_role: ["super_admin", "admin", "user"],
     },

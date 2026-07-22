@@ -296,18 +296,22 @@ export function ReportCalendarModal({
             border-radius: 9999px;
             inset: 10% 10%;
           }
-          /* 일간 모드: 기본(연보라 0.1) / 현재(opaque 파랑) / 선택(opaque 보라) 3단계로 명확히 구분 */
-          .report-calendar.mode-daily .day-current::before {
+          /* 일간·주간 모드: 현재(파랑) / 선택(보라)을 같은 색 체계로 구분 */
+          .report-calendar.mode-daily .day-current::before,
+          .report-calendar.mode-weekly .day-current::before {
             background-color: #362cff;
           }
-          .report-calendar.mode-daily .rdp-day.day-current {
+          .report-calendar.mode-daily .rdp-day.day-current,
+          .report-calendar.mode-weekly .rdp-day.day-current {
             color: #ffffff;
             font-weight: 600;
           }
-          .report-calendar.mode-daily .day-selected::before {
+          .report-calendar.mode-daily .day-selected::before,
+          .report-calendar.mode-weekly .day-selected::before {
             background-color: #9747ff;
           }
-          .report-calendar.mode-daily .rdp-day.day-selected {
+          .report-calendar.mode-daily .rdp-day.day-selected,
+          .report-calendar.mode-weekly .rdp-day.day-selected {
             color: #ffffff;
             font-weight: 600;
           }
@@ -380,22 +384,22 @@ export function ReportCalendarModal({
             {/* 범례 */}
             <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
               <div className="flex items-center gap-1.5">
-                <div className={`w-2.5 h-2.5 ${mode === 'daily' ? 'rounded-full' : ''}`} style={{ backgroundColor: mode === 'daily' ? 'rgba(151, 71, 255, 0.35)' : 'rgba(54, 44, 255, 0.2)' }} />
+                <div
+                  className={`w-2.5 h-2.5 ${mode === 'daily' ? 'rounded-full' : ''}`}
+                  style={{
+                    backgroundColor:
+                      mode === 'daily' ? 'rgba(151, 71, 255, 0.1)' : 'rgba(54, 44, 255, 0.08)',
+                  }}
+                />
                 <span className="text-xs text-text-muted">{mode === 'daily' ? '일간 보고서' : '주간 보고서'}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-bg-blue" />
+                <div className="w-2.5 h-2.5 rounded-full bg-[#362cff]" />
                 <span className="text-xs text-text-muted">현재 보고서</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-bg-pupple-calendar" />
+                <div className="w-2.5 h-2.5 rounded-full bg-[#9747ff]" />
                 <span className="text-xs text-text-muted">선택된 보고서</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="relative w-2.5 h-2.5">
-                  <div className="absolute left-1/2 -translate-x-1/2 bottom-0 w-1 h-1 rounded-full bg-bg-accent" />
-                </div>
-                <span className="text-xs text-text-muted">오늘</span>
               </div>
             </div>
           </>

@@ -44,8 +44,12 @@ export function ContractExpiryNotice({ user }: ContractExpiryNoticeProps) {
   const isDismissed = isContractExpiryNoticeDismissed(subscription, dismissalQuery.data);
   const open = !isDismissed && closedNoticeKey !== noticeKey;
   const days = summary.daysUntilExpiry ?? 0;
-  const remainingText =
-    days === 0
+  const isTrial = subscription.contract_type === 'trial';
+  const remainingText = isTrial
+    ? days === 0
+      ? '무료 체험이 오늘 종료됩니다.'
+      : `무료 체험이 ${days}일 남았습니다.`
+    : days === 0
       ? '계약이 오늘 종료됩니다.'
       : days === 1
         ? '계약 종료까지 하루 남았습니다.'
@@ -91,7 +95,7 @@ export function ContractExpiryNotice({ user }: ContractExpiryNoticeProps) {
     <Modal
       open={open}
       onClose={closeForVisit}
-      title="계약 만료 안내"
+      title={isTrial ? '무료 체험 종료 안내' : '계약 만료 안내'}
       size="sm"
       footer={
         <div className="flex w-full flex-col gap-3">
@@ -120,7 +124,7 @@ export function ContractExpiryNotice({ user }: ContractExpiryNoticeProps) {
               disabled={dismissMutation.isPending}
               className="size-4 accent-bg-accent"
             />
-            계약 종료일까지 보지 않기
+            {isTrial ? '무료 체험 종료일까지 보지 않기' : '계약 종료일까지 보지 않기'}
           </label>
         </div>
       }

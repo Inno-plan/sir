@@ -3,6 +3,7 @@ import {
   getContractEndDate,
   getContractStartDate,
   getKstTodayDate,
+  getTrialEndDate,
   toContractEndIso,
   toContractStartIso,
 } from '@/lib/contractDate';
@@ -29,5 +30,9 @@ describe('contract date boundaries', () => {
     expect(dateParts(getKstTodayDate(new Date('2026-07-20T15:00:00.000Z')))).toEqual([
       2026, 7, 21,
     ]);
+  });
+
+  it('calculates a ten-day trial as an inclusive UI range', () => {
+    expect(dateParts(getTrialEndDate(new Date(2026, 6, 22)))).toEqual([2026, 7, 31]);
   });
 });
